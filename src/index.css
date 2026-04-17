@@ -11,9 +11,29 @@
 @import "@fontsource/fraunces/latin-600-italic.css";
 @import "tailwindcss";
 
+/* Metric-matched fallbacks. When the real font loads it swaps in without
+   noticeable layout shift. Values derived from published Fraunces / Inter
+   metric overrides (see https://screenspan.net/fallback). */
+@font-face {
+  font-family: 'Fraunces-fallback';
+  src: local('Times New Roman'), local('Georgia'), local('serif');
+  size-adjust: 96%;
+  ascent-override: 92%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Inter-fallback';
+  src: local('Helvetica Neue'), local('Arial'), local('sans-serif');
+  size-adjust: 107%;
+  ascent-override: 90%;
+  descent-override: 22%;
+  line-gap-override: 0%;
+}
+
 @theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-serif: 'Fraunces', 'Times New Roman', serif;
+  --font-sans: 'Inter', 'Inter-fallback', system-ui, sans-serif;
+  --font-serif: 'Fraunces', 'Fraunces-fallback', 'Times New Roman', serif;
 
   /* Navy — from logo: #191C35 dark, #2B40F5 accent */
   --color-navy-50: #ECEFFE;
@@ -124,5 +144,11 @@ body {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .animate-ping,
+  .animate-pulse,
+  .animate-bounce,
+  .animate-spin {
+    animation: none !important;
   }
 }

@@ -74,6 +74,26 @@ const FadeIn = ({ children, delay = 0, className = "" }: { children: React.React
   </motion.div>
 );
 
+/* Below-the-fold render defer — keeps section JS/DOM work off the main
+   thread during initial load. Empty placeholder reserves height so CLS
+   stays at 0; real content mounts once the section is 600px from entering
+   the viewport. */
+function DeferredMount({
+  children,
+  minHeight = "100svh",
+}: {
+  children: React.ReactNode;
+  minHeight?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "600px" });
+  return (
+    <div ref={ref}>
+      {inView ? children : <div aria-hidden="true" style={{ minHeight }} />}
+    </div>
+  );
+}
+
 const sectionEyebrow = "text-sm text-navy-500 font-semibold tracking-wide mb-4";
 const sectionHeading = "text-[32px] md:text-[44px] font-semibold tracking-tight text-navy-900 leading-[1.12] text-balance";
 const sectionCopy = "text-lg text-ivory-700 leading-[1.6] text-pretty";
@@ -135,11 +155,11 @@ export default function App() {
         <HowAnswersSection />
         <TryACallSection />
         <IntegrationsSection />
-        <FounderNoteSection />
-        <EngineeringNoteSection />
-        <PricingSection />
-        <FAQSection />
-        <BookDemoSection />
+        <DeferredMount><FounderNoteSection /></DeferredMount>
+        <DeferredMount><EngineeringNoteSection /></DeferredMount>
+        <DeferredMount><PricingSection /></DeferredMount>
+        <DeferredMount><FAQSection /></DeferredMount>
+        <DeferredMount><BookDemoSection /></DeferredMount>
       </main>
       <Footer />
       <Analytics />
@@ -251,7 +271,12 @@ function HeroSection() {
           src={HERO_IMAGE}
           srcSet={HERO_IMAGE_SRC_SET}
           sizes="100vw"
+          width={1920}
+          height={1280}
           alt="Hotel front desk agent on the phone"
+          fetchPriority="high"
+          loading="eager"
+          decoding="async"
           className="absolute -top-[5%] left-0 w-full h-[112%] object-cover"
           loading="eager"
           fetchPriority="high"

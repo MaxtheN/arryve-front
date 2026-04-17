@@ -5,8 +5,38 @@ import {
   Check,
   Heart,
   Sparkles,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+
+/* Speech helper — mirrors the landing page's speakArvy so the pitch deck
+   can play the same "Hear Arvy" interaction. */
+function speakArvy(
+  text: string,
+  callbacks: { onStart?: () => void; onEnd?: () => void } = {},
+) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    callbacks.onEnd?.();
+    return;
+  }
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 1.0;
+  utter.pitch = 1.02;
+  const voices = synth.getVoices();
+  const voice =
+    voices.find((v) => v.name === 'Samantha') ||
+    voices.find((v) => v.lang === 'en-US' && /female/i.test(v.name)) ||
+    voices.find((v) => v.name.includes('Google UK English Female')) ||
+    voices.find((v) => v.lang.startsWith('en'));
+  if (voice) utter.voice = voice;
+  utter.onstart = () => callbacks.onStart?.();
+  utter.onend = () => callbacks.onEnd?.();
+  utter.onerror = () => callbacks.onEnd?.();
+  synth.speak(utter);
+}
 
 /* ─── Design tokens (match landing page) ───────────────────────────────
    forest-950  #03241E  — dark bg / headlines on light
@@ -18,13 +48,18 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
    Fonts: Fraunces (serif display), Inter (sans body)
 ────────────────────────────────────────────────────────────────────── */
 
-const TOTAL = 15;
+const MAIN_SLIDES = 11; // Main flow. Appendix (Exit) sits at index 11, reachable via End.
+const APPENDIX_INDEX = 11;
+const TOTAL_WITH_APPENDIX = 12;
 
 export default function PitchDeck() {
   const [current, setCurrent] = useState(0);
   const [isPrintMode, setIsPrintMode] = useState(false);
 
-  const next = useCallback(() => setCurrent((c) => Math.min(c + 1, TOTAL - 1)), []);
+  const next = useCallback(
+    () => setCurrent((c) => Math.min(c + 1, MAIN_SLIDES - 1)),
+    [],
+  );
   const prev = useCallback(() => setCurrent((c) => Math.max(c - 1, 0)), []);
 
   useEffect(() => {
@@ -38,7 +73,7 @@ export default function PitchDeck() {
       } else if (e.key === 'Home') {
         setCurrent(0);
       } else if (e.key === 'End') {
-        setCurrent(TOTAL - 1);
+        setCurrent(APPENDIX_INDEX);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -56,22 +91,22 @@ export default function PitchDeck() {
     };
   }, []);
 
+  // My 11-slide main flow + Slide14Exit as appendix (reach via End key).
+  // Components (not JSX) so remote's lazy-render pattern below can mount
+  // them only when the slide is actually visible (or in print mode).
   const slides = [
     Slide01Title,
     Slide02Problem,
-    Slide03WhyNow,
     Slide04Solution,
     Slide05HowItWorks,
-    Slide06Founder,
     Slide07Market,
     Slide08GoToMarket,
     Slide09BusinessModel,
     Slide10Competition,
     Slide11Traction,
     Slide12Team,
-    Slide13Roadmap,
-    Slide14Exit,
     Slide15Ask,
+    Slide14Exit, // appendix — hidden from counter, reach via End
   ];
 
   return (
@@ -97,7 +132,15 @@ export default function PitchDeck() {
         );
       })}
 
-      <DeckChrome current={current} total={TOTAL} onJump={setCurrent} onPrev={prev} onNext={next} />
+      <DeckChrome
+        current={current}
+        total={MAIN_SLIDES}
+        appendixIndex={APPENDIX_INDEX}
+        totalWithAppendix={TOTAL_WITH_APPENDIX}
+        onJump={setCurrent}
+        onPrev={prev}
+        onNext={next}
+      />
       <SpeedInsights />
     </div>
   );
@@ -108,22 +151,27 @@ export default function PitchDeck() {
 function DeckChrome({
   current,
   total,
+  appendixIndex,
+  totalWithAppendix,
   onJump,
   onPrev,
   onNext,
 }: {
   current: number;
   total: number;
+  appendixIndex: number;
+  totalWithAppendix: number;
   onJump: (i: number) => void;
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const onAppendix = current === appendixIndex;
   return (
     <>
       <button
         type="button"
-        onClick={onPrev}
-        disabled={current === 0}
+        onClick={onAppendix ? () => onJump(total - 1) : onPrev}
+        disabled={!onAppendix && current === 0}
         className="deck-chrome fixed left-4 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-forest-950/10 hover:bg-forest-950/20 disabled:opacity-0 disabled:pointer-events-none transition backdrop-blur-sm"
         aria-label="Previous slide"
       >
@@ -132,7 +180,7 @@ function DeckChrome({
       <button
         type="button"
         onClick={onNext}
-        disabled={current === total - 1}
+        disabled={current === total - 1 || onAppendix}
         className="deck-chrome fixed right-4 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-forest-950/10 hover:bg-forest-950/20 disabled:opacity-0 disabled:pointer-events-none transition backdrop-blur-sm"
         aria-label="Next slide"
       >
@@ -141,7 +189,9 @@ function DeckChrome({
 
       <div className="deck-chrome fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-ivory-50/90 backdrop-blur-md border border-forest-950/10 rounded-full px-4 py-2">
         <span className="text-[10px] uppercase tracking-[0.22em] text-forest-950/60 font-medium tabular-nums">
-          {String(current + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+          {onAppendix
+            ? 'Appendix'
+            : `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`}
         </span>
         <span className="w-px h-4 bg-forest-950/15" />
         <div className="flex items-center gap-1">
@@ -156,6 +206,19 @@ function DeckChrome({
               aria-label={`Go to slide ${i + 1}`}
             />
           ))}
+          <button
+            type="button"
+            onClick={() => onJump(appendixIndex)}
+            title="Appendix (End key)"
+            className={`ml-2 text-[9px] uppercase tracking-[0.2em] font-medium px-2 py-0.5 rounded-full transition ${
+              onAppendix
+                ? 'bg-forest-900 text-ivory-50'
+                : 'text-forest-950/45 hover:text-forest-950/85 border border-forest-950/15'
+            }`}
+            aria-label={`Go to appendix (slide ${totalWithAppendix})`}
+          >
+            +1
+          </button>
         </div>
       </div>
     </>
@@ -341,17 +404,17 @@ function Slide02Problem() {
     {
       big: <>1 <span className="italic font-light text-forest-950/75">in</span> 3</>,
       label: 'guest calls unanswered',
-      body: 'During busy shifts and after hours — every one is a booking lost to an OTA, a competitor, or silence.',
+      body: 'Busy shifts. After hours. Every one walks to an OTA.',
     },
     {
       big: <>$12<span className="italic font-light text-forest-950/75 text-[0.6em] align-top ml-1">k</span></>,
-      label: 'in direct bookings lost / month',
-      body: 'A handful of unanswered calls a day compounds fast. The callers were ready to book — they just needed a human on the line.',
+      label: 'bookings lost / month',
+      body: 'Per average property. Compounds fast.',
     },
     {
       big: <>2.5<span className="italic font-light text-forest-950/75 text-[0.5em] align-baseline ml-2">hrs</span></>,
       label: 'staff time on FAQ / day',
-      body: 'Parking. Pets. Breakfast. Check-in. Dozens of times a day, pulling staff from guests standing in front of them.',
+      body: 'Parking. Pets. Breakfast. Check-in. Every day.',
     },
   ];
 
@@ -386,63 +449,28 @@ function Slide02Problem() {
   );
 }
 
-/* ─── Slide 03 — Why now ─────────────────────────────────────────────── */
-
-function Slide03WhyNow() {
-  const items = [
-    {
-      n: '01',
-      title: 'Voice AI crossed the line.',
-      body: 'Streaming latency under 300ms. Natural prosody. The guest on the other end can\'t tell — and doesn\'t care to.',
-    },
-    {
-      n: '02',
-      title: 'PMS APIs finally opened up.',
-      body: 'HotelKey, Opera, Cloudbeds, Mews — stable, documented, and no longer gated to enterprise-only integrations.',
-    },
-    {
-      n: '03',
-      title: 'Hotel labor is structurally short.',
-      body: 'Front-desk wages up 25%+ post-COVID. Small-property understaffing isn\'t a cycle — it\'s the new baseline.',
-    },
-  ];
-
-  return (
-    <Slide tone="white">
-      <div className="relative">
-        <SlideNumber n={3} />
-        <Eyebrow>Why now</Eyebrow>
-        <h2 className="font-serif text-[48px] md:text-[68px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[18ch] mb-14 text-balance">
-          Three curves crossed in the last <em className="italic font-light">18 months.</em>
-        </h2>
-
-        <div className="grid md:grid-cols-3 gap-8 md:gap-12">
-          {items.map((it) => (
-            <div key={it.n}>
-              <div className="font-mono text-[13px] text-forest-950/55 tracking-wider mb-4 font-medium">{it.n}</div>
-              <h3 className="font-serif text-[24px] md:text-[30px] font-normal tracking-[-0.015em] leading-[1.15] text-forest-950 mb-4 text-pretty">
-                {it.title}
-              </h3>
-              <p className="text-sm md:text-[15px] text-forest-950/70 leading-[1.6] text-pretty">{it.body}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-14 pt-8 border-t border-forest-950/10 text-[16px] md:text-[18px] text-forest-950 italic font-serif font-light max-w-[52ch] text-pretty">
-          Small hotels couldn't afford call centers <span className="not-italic font-sans">or</span> enterprise AI. <Highlight>Now they get both, in one line.</Highlight>
-        </div>
-      </div>
-    </Slide>
-  );
-}
+/* Slide 03 (Why now) removed — its signal is woven into the Solution slide. */
 
 /* ─── Slide 04 — Solution ─────────────────────────────────────────────── */
 
 function Slide04Solution() {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const handleHearArvy = () => {
+    if (isSpeaking) {
+      window.speechSynthesis?.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    speakArvy(
+      "Good evening, thank you for calling. This is Arvy. We have a king available at $189 tonight, breakfast included. Whose name shall I put the reservation under?",
+      { onStart: () => setIsSpeaking(true), onEnd: () => setIsSpeaking(false) },
+    );
+  };
+
   return (
     <Slide tone="warm">
       <div className="relative grid md:grid-cols-[1.15fr_1fr] gap-14 md:gap-20 items-center">
-        <SlideNumber n={4} />
+        <SlideNumber n={3} />
         <div>
           <div className="mb-6 flex items-center gap-3">
             <ArryveMark className="h-7" />
@@ -452,15 +480,14 @@ function Slide04Solution() {
           <h2 className="font-serif text-[52px] md:text-[80px] font-normal tracking-[-0.03em] leading-[1.0] text-forest-950 mb-6 text-balance">
             Meet <em className="italic font-light">Arvy.</em>
           </h2>
-          <p className="font-serif text-[22px] md:text-[28px] text-forest-950/85 leading-[1.25] max-w-[26ch] text-pretty mb-10">
+          <p className="font-serif text-[22px] md:text-[28px] text-forest-950/85 leading-[1.25] max-w-[26ch] text-pretty mb-8">
             The AI voice that <Highlight>answers every guest call</Highlight>.
           </p>
-          <ul className="space-y-4 text-[15px] md:text-base text-forest-950/85 leading-[1.55]">
+          <ul className="space-y-3 text-[15px] md:text-base text-forest-950/85 leading-[1.45] mb-8">
             {[
-              <>Answers <strong className="font-medium">every</strong> call, 24/7, in your hotel's voice</>,
-              <>Captures bookings <strong className="font-medium">live</strong> — writes to your PMS mid-call</>,
-              <>Handles routine FAQ in <strong className="font-medium">under 30 seconds</strong></>,
-              <>Escalates to staff <strong className="font-medium">with context</strong> — reservation note, pre-briefed transfer</>,
+              <>Every call, 24/7 — in your hotel's voice</>,
+              <>Captures bookings <strong className="font-medium">live</strong> (writes to your PMS)</>,
+              <>Escalates with context when a human is needed</>,
             ].map((line, i) => (
               <li key={i} className="flex items-start gap-3">
                 <Check className="w-4 h-4 text-forest-900 mt-1 flex-shrink-0" />
@@ -468,6 +495,25 @@ function Slide04Solution() {
               </li>
             ))}
           </ul>
+
+          <button
+            type="button"
+            onClick={handleHearArvy}
+            aria-label={isSpeaking ? 'Stop Arvy' : 'Hear Arvy answer'}
+            className="group inline-flex items-center gap-3 pl-1.5 pr-5 py-1.5 rounded-full border border-forest-950/20 bg-white/60 hover:bg-white transition-colors"
+          >
+            <span className="relative grid place-items-center h-9 w-9 rounded-full bg-forest-950 text-ivory-50">
+              {!isSpeaking && (
+                <span className="absolute inset-0 rounded-full bg-forest-950 opacity-30 animate-ping" />
+              )}
+              <span className="relative">
+                {isSpeaking ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-[1px]" />}
+              </span>
+            </span>
+            <span className="text-sm font-medium text-forest-950">
+              {isSpeaking ? 'Arvy is speaking…' : 'Hear Arvy answer'}
+            </span>
+          </button>
         </div>
 
         <div className="rounded-3xl bg-white border border-forest-950/10 shadow-[0_40px_120px_-40px_rgba(3,36,30,0.28)] overflow-hidden">
@@ -513,7 +559,11 @@ function Slide05HowItWorks() {
     {
       n: '01',
       label: 'New booking',
-      title: 'Reservation written straight into the PMS.',
+      title: 'A reservation, written to the PMS live.',
+      transcript: [
+        { who: 'Guest', text: 'Any chance you have a king tonight?' },
+        { who: 'Arvy', text: 'One king at $189, breakfast included. Whose name?' },
+      ],
       outcome: 'Booking captured',
       meta: '0:42 · synced',
     },
@@ -521,110 +571,96 @@ function Slide05HowItWorks() {
       n: '02',
       label: 'Returning guest',
       title: 'Profile + prior stays pulled in real time.',
+      transcript: [
+        { who: 'Guest', text: "Hi, this is Sarah Chen — confirming Saturday?" },
+        { who: 'Arvy', text: 'Welcome back, Ms. Chen. King suite, 3 PM check-in. Shuttle again?' },
+      ],
       outcome: 'Confirmed',
       meta: '0:28 · no transfer',
     },
     {
       n: '03',
-      label: 'Escalation with context',
-      title: 'Transferred with the note already written.',
+      label: 'Escalation',
+      title: 'Transferred — with the note already written.',
+      transcript: [
+        { who: 'Guest', text: 'Can you split our bill three ways across cards?' },
+        { who: 'Arvy', text: "I'll note it on your reservation and put you through." },
+      ],
       outcome: 'Transferred',
       meta: '0:16 · to ext. 100',
     },
   ];
 
+  const [active, setActive] = useState(0);
+  const s = scenarios[active];
+
   return (
     <Slide tone="white">
       <div className="relative">
-        <SlideNumber n={5} />
+        <SlideNumber n={4} />
         <Eyebrow>How it works</Eyebrow>
-        <h2 className="font-serif text-[48px] md:text-[68px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[18ch] mb-12 text-balance">
+        <h2 className="font-serif text-[42px] md:text-[58px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[20ch] mb-8 text-balance">
           Three kinds of calls. <em className="italic font-light">One steady voice.</em>
         </h2>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {scenarios.map((s) => (
-            <div key={s.n} className="rounded-2xl border border-ivory-200 bg-ivory-50 p-6 md:p-7">
-              <div className="flex items-center justify-between mb-5">
-                <div className="font-mono text-[11px] text-forest-950/45 tracking-wider">{s.n}</div>
-                <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/55 font-medium">{s.label}</div>
-              </div>
-              <h3 className="font-serif text-[22px] md:text-[24px] font-normal tracking-[-0.015em] leading-[1.2] text-forest-950 mb-6 text-pretty min-h-[58px]">
-                {s.title}
-              </h3>
-              <div className="pt-4 border-t border-ivory-200 flex items-center justify-between">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-forest-950 text-ivory-50 px-2.5 py-1 text-[9px] uppercase tracking-[0.18em] font-medium">
-                  <Check className="w-2.5 h-2.5" />
-                  {s.outcome}
-                </div>
-                <span className="text-[10px] text-ivory-600 tabular-nums">{s.meta}</span>
-              </div>
-            </div>
+        {/* Tab strip — click to switch scenarios */}
+        <div className="flex flex-wrap gap-2 mb-6" role="tablist">
+          {scenarios.map((sc, i) => (
+            <button
+              key={sc.n}
+              type="button"
+              role="tab"
+              aria-selected={i === active}
+              onClick={() => setActive(i)}
+              className={`inline-flex items-center gap-2.5 rounded-full px-4 py-2 text-[12px] uppercase tracking-[0.2em] font-medium transition ${
+                i === active
+                  ? 'bg-forest-950 text-ivory-50'
+                  : 'bg-forest-950/[0.04] text-forest-950/65 hover:bg-forest-950/[0.08] hover:text-forest-950'
+              }`}
+            >
+              <span className="font-mono tabular-nums">{sc.n}</span>
+              <span>{sc.label}</span>
+            </button>
           ))}
         </div>
 
-        <div className="mt-10 pt-8 border-t border-forest-950/10">
-          <div className="flex items-baseline justify-between mb-5">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/60 font-medium">
-              Integrates directly with
+        {/* Active scenario card */}
+        <div className="grid md:grid-cols-[1.1fr_1fr] gap-8 items-start">
+          <div className="rounded-2xl border border-forest-950/10 bg-ivory-50 p-7 md:p-8 min-h-[240px]">
+            <h3 className="font-serif text-[24px] md:text-[28px] font-normal tracking-[-0.015em] leading-[1.2] text-forest-950 mb-5 text-pretty">
+              {s.title}
+            </h3>
+            <div className="space-y-4">
+              {s.transcript.map((t, j) => (
+                <div key={j}>
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/50 font-medium mb-1">
+                    {t.who}
+                  </div>
+                  <p className="text-[14px] md:text-[15px] text-forest-950/90 leading-[1.5]">{t.text}</p>
+                </div>
+              ))}
             </div>
-            <div className="text-[10px] text-forest-950/45">Real-time PMS read + write</div>
+            <div className="mt-5 pt-4 border-t border-forest-950/10 flex items-center justify-between">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-forest-950 text-ivory-50 px-2.5 py-1 text-[9px] uppercase tracking-[0.2em] font-medium">
+                <Check className="w-2.5 h-2.5" />
+                {s.outcome}
+              </div>
+              <span className="text-[10px] text-forest-950/55 tabular-nums">{s.meta}</span>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <BrandLogo name="HotelKey" size="md" />
-            <BrandLogo name="Opera" size="md" />
-            <BrandLogo name="Cloudbeds" size="md" />
-            <BrandLogo name="Mews" size="md" />
-            <BrandLogo name="Twilio" size="md" />
-            <BrandLogo name="Stayntouch" size="md" />
-          </div>
-        </div>
-      </div>
-    </Slide>
-  );
-}
 
-/* ─── Slide 06 — Founder-product fit ──────────────────────────────────── */
-
-function Slide06Founder() {
-  return (
-    <Slide tone="light">
-      <div className="relative grid md:grid-cols-[1fr_1.1fr] gap-14 md:gap-20 items-center">
-        <SlideNumber n={6} />
-        <div>
-          <Eyebrow>Founder-product fit</Eyebrow>
-          <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.05] text-forest-950 mb-6 text-balance">
-            I lived the missed call <em className="italic font-light">every shift</em>.
-          </h2>
-          <p className="text-base md:text-lg text-ivory-700 leading-[1.6] text-pretty mb-6">
-            Three-plus years working the US hotel industry — watching bookings walk to OTAs because the phone rang during check-in. This isn't a thesis. It's the job I had.
-          </p>
-          <p className="text-base md:text-lg text-ivory-700 leading-[1.6] text-pretty">
-            I built Arryve for the person behind the desk. Hospitality is human; the phone work is the part we can take off their plate.
-          </p>
-        </div>
-
-        <div className="rounded-3xl bg-white border border-forest-950/10 p-8 md:p-10 shadow-[0_30px_80px_-40px_rgba(3,36,30,0.18)]">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/55 font-medium mb-5">
-            What I bring to this problem
-          </div>
-          <div className="space-y-5">
-            <FounderRow
-              heading="3+ years in US hotel operations"
-              body={<>Front-desk and operations roles at <FillIn>specific HIE / Holiday Inn properties</FillIn>.</>}
-            />
-            <FounderRow
-              heading="Personal network in the Midwest"
-              body={<><FillIn>~N hotelier relationships</FillIn> across OH / KY / IN — warm-intro velocity that a cold-outbound competitor can't match.</>}
-            />
-            <FounderRow
-              heading="Native Uzbek + English fluency"
-              body={<>Unlocks the Cincinnati Uzbek-American hotelier network (slide 8) — a distribution wedge no one else has.</>}
-            />
-            <FounderRow
-              heading="Technical co-founder: Nurislombek"
-              body={<><FillIn>Engineering background — voice AI / systems experience</FillIn>.</>}
-            />
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/60 font-medium mb-3">
+              Works with your PMS
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <BrandLogo name="HotelKey" size="sm" />
+              <BrandLogo name="Opera" size="sm" />
+              <BrandLogo name="Cloudbeds" size="sm" />
+              <BrandLogo name="Mews" size="sm" />
+              <BrandLogo name="Twilio" size="sm" />
+              <BrandLogo name="Stayntouch" size="sm" />
+            </div>
           </div>
         </div>
       </div>
@@ -632,17 +668,7 @@ function Slide06Founder() {
   );
 }
 
-function FounderRow({ heading, body }: { heading: React.ReactNode; body: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3">
-      <Check className="w-4 h-4 text-forest-900 mt-1 flex-shrink-0" />
-      <div>
-        <div className="text-[14px] font-medium text-forest-950 mb-0.5">{heading}</div>
-        <div className="text-[13px] text-ivory-700 leading-[1.55]">{body}</div>
-      </div>
-    </div>
-  );
-}
+/* Slide 06 (Founder-product fit) removed — content merged into Team (Slide 12). */
 
 /* ─── Slide 07 — Market ──────────────────────────────────────────────── */
 
@@ -650,46 +676,35 @@ function Slide07Market() {
   return (
     <Slide tone="white">
       <div className="relative">
-        <SlideNumber n={7} />
-        <Eyebrow>Market opportunity</Eyebrow>
+        <SlideNumber n={5} />
+        <Eyebrow>Market</Eyebrow>
         <h2 className="font-serif text-[48px] md:text-[68px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 mb-14 text-balance max-w-[18ch]">
           A large, <Highlight>underserved wedge</Highlight>.
         </h2>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-8 mb-10">
           <MarketStat
             value="~40K"
             label="US small & mid-sized hotels"
-            detail="Independents and franchisees — our direct target. (Total US: ~60K properties.)"
+            detail="Independents + franchisees. (Total US: ~60K.)"
             emphasis={false}
           />
           <MarketStat
             value="$860M"
             label="US TAM"
-            detail="40K × $21,588/yr (Property annual plan). Before international and adjacent expansion."
+            detail="40K × $21,588/yr Property annual."
             emphasis
           />
           <MarketStat
             value="~$320M"
             label="SAM near-term"
-            detail="~15K properties already on HotelKey / Opera / Cloudbeds / Mews in the US."
+            detail="~15K on HotelKey / Opera / Cloudbeds / Mews."
             emphasis={false}
           />
         </div>
 
-        <div className="mt-12 pt-8 border-t border-forest-950/10 grid md:grid-cols-2 gap-10">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/55 font-medium mb-3">Why the wedge</div>
-            <p className="text-base text-ivory-700 leading-[1.6] text-pretty">
-              Enterprise hotel tech prices out 80% of US properties. Call centers are expensive and don't close. We land where both fail — at small & mid-sized hotels that want to answer <em>every</em> call without hiring another FTE.
-            </p>
-          </div>
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/55 font-medium mb-3">International</div>
-            <p className="text-base text-ivory-700 leading-[1.6] text-pretty">
-              ~700K hotels globally outside the US. 5–10× TAM expansion once English + 2–3 more languages ship. Voice is the universal interface.
-            </p>
-          </div>
+        <div className="pt-6 border-t border-forest-950/10 text-[15px] md:text-[17px] text-forest-950 font-serif italic font-light max-w-[60ch] text-pretty">
+          Enterprise tech prices out 80% of US properties. Call centers don't close. <Highlight>We land exactly where both fail.</Highlight>
         </div>
       </div>
     </Slide>
@@ -728,22 +743,22 @@ function Slide08GoToMarket() {
   const waves = [
     {
       n: 'Wave 1',
-      title: 'Cincinnati Uzbek-American hoteliers',
-      body: <>Our immediate diaspora network: <FillIn>~N properties</FillIn> of Holiday Inn Express / Holiday Inn franchises. Trust velocity &gt; cold outbound. Reference-driven close in weeks.</>,
+      title: 'Cincinnati Uzbek hoteliers',
+      body: <><FillIn>~N properties</FillIn> of HIE / Holiday Inn franchises. Trust &gt; cold outbound.</>,
       target: '10 paid pilots',
       when: 'Q1–Q2 2026',
     },
     {
       n: 'Wave 2',
-      title: 'Midwest expansion + AAHOA',
-      body: 'AAHOA (Asian-American Hotel Owners Association): 20,000+ properties, many Indian-American-owned. Same diaspora-trust dynamic — warm intros from Wave 1 operators.',
+      title: 'Midwest + AAHOA',
+      body: '20K+ properties. Same diaspora-trust dynamic, warm-intro flywheel.',
       target: '50 paying properties',
       when: 'Q3–Q4 2026',
     },
     {
       n: 'Wave 3',
-      title: 'IHG franchisee forums + PMS marketplaces',
-      body: 'Land as a listed integration on HotelKey & Opera marketplaces. Ride case studies from Waves 1–2 into IHG owner groups — 40% of our TAM sits under IHG brands.',
+      title: 'IHG + PMS marketplaces',
+      body: 'Listed on HotelKey / Opera marketplaces. Case studies unlock IHG owner groups — 40% of TAM.',
       target: '300+ properties',
       when: '2027',
     },
@@ -752,14 +767,11 @@ function Slide08GoToMarket() {
   return (
     <Slide tone="warm">
       <div className="relative">
-        <SlideNumber n={8} />
+        <SlideNumber n={6} />
         <Eyebrow>Go to market</Eyebrow>
-        <h2 className="font-serif text-[44px] md:text-[64px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[20ch] mb-4 text-balance">
+        <h2 className="font-serif text-[44px] md:text-[64px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[20ch] mb-10 text-balance">
           Start in Cincinnati. <em className="italic font-light">Expand on trust.</em>
         </h2>
-        <p className="text-base md:text-lg text-ivory-700 leading-[1.6] max-w-2xl text-pretty mb-12">
-          A distribution advantage competitors can't replicate — because it's community, not marketing.
-        </p>
 
         <div className="grid md:grid-cols-3 gap-6">
           {waves.map((w) => (
@@ -786,25 +798,23 @@ function Slide08GoToMarket() {
 /* ─── Slide 09 — Business model ──────────────────────────────────────── */
 
 function Slide09BusinessModel() {
+  const [calls, setCalls] = useState(40);
+  // Conservative: 33% missed × 15% recovery × $150 booking
+  const recovered = Math.round(calls * 30 * 0.33 * 0.15 * 150);
+  const price = 1799;
+  const roi = Math.max(1, Math.round(recovered / price));
+
   const rows = [
     { label: 'Monthly', value: '$1,799 / property' },
     { label: 'Annual', value: '$17,990 (2 months free)' },
     { label: 'Onboarding', value: '$2,500 one-time' },
-    { label: 'Overage', value: '$1.25 / call above 2,000 / mo' },
-  ];
-
-  const unitEcon = [
-    { label: 'Gross margin (at scale)', value: '~70%' },
-    { label: 'Target CAC (diaspora-led)', value: '~$1,500' },
-    { label: 'LTV (18-mo avg retention)', value: '~$30K' },
-    { label: 'LTV / CAC', value: '~20×' },
-    { label: 'Payback', value: '~3 months' },
+    { label: 'Overage', value: '$1.25 / call > 2,000 / mo' },
   ];
 
   return (
     <Slide tone="light">
-      <div className="relative grid md:grid-cols-[1.1fr_1fr] gap-14 md:gap-20 items-start">
-        <SlideNumber n={9} />
+      <div className="relative grid md:grid-cols-[1fr_1.1fr] gap-14 md:gap-20 items-start">
+        <SlideNumber n={7} />
         <div>
           <Eyebrow>Business model</Eyebrow>
           <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 mb-8 text-balance">
@@ -814,34 +824,74 @@ function Slide09BusinessModel() {
             {rows.map((r, i) => (
               <div
                 key={r.label}
-                className={`px-6 py-5 flex items-center justify-between gap-6 ${
+                className={`px-6 py-4 flex items-center justify-between gap-6 ${
                   i < rows.length - 1 ? 'border-b border-ivory-200' : ''
                 }`}
               >
                 <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/60 font-medium">
                   {r.label}
                 </div>
-                <div className="font-serif text-[18px] md:text-[22px] text-forest-950 tabular-nums">
+                <div className="font-serif text-[17px] md:text-[20px] text-forest-950 tabular-nums">
                   {r.value}
                 </div>
               </div>
             ))}
           </div>
+          <p className="mt-6 text-[13px] italic text-forest-950/70 leading-[1.55] max-w-md text-pretty">
+            Diaspora-driven GTM: CAC ~$1,500 · LTV ~$30K · payback ~3 months.
+          </p>
         </div>
 
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/55 font-medium mb-6">Unit economics (target)</div>
-          <div className="space-y-3">
-            {unitEcon.map((r) => (
-              <div key={r.label} className="flex items-baseline justify-between border-b border-forest-950/10 pb-3">
-                <div className="text-[13px] text-forest-950/75">{r.label}</div>
-                <div className="font-mono text-[14px] text-forest-950 tabular-nums">{r.value}</div>
-              </div>
-            ))}
+        {/* Interactive ROI slider */}
+        <div className="rounded-3xl bg-white border border-forest-950/10 p-7 md:p-8 shadow-[0_30px_80px_-40px_rgba(3,36,30,0.18)]">
+          <div className="flex items-baseline justify-between mb-6">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/60 font-medium">
+              Drag to see the ROI
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-forest-950/40">Estimated</div>
           </div>
-          <p className="mt-8 text-[14px] italic text-forest-950/75 leading-[1.6] max-w-md text-pretty">
-            Diaspora-driven GTM keeps CAC below SaaS average. Structural pricing advantage — still roughly half a call center's cost, while <Highlight>capturing bookings they can't</Highlight>.
-          </p>
+
+          <div className="grid grid-cols-2 gap-6 mb-7">
+            <div>
+              <div className="font-serif text-[40px] md:text-[52px] font-normal tracking-[-0.025em] leading-[0.95] text-forest-950 tabular-nums">
+                ${recovered.toLocaleString()}
+              </div>
+              <div className="mt-2 text-[11px] md:text-[12px] text-forest-950/60 leading-snug">
+                bookings recovered / month
+              </div>
+            </div>
+            <div>
+              <div className="font-serif text-[40px] md:text-[52px] font-normal tracking-[-0.025em] leading-[0.95] text-forest-950 tabular-nums">
+                <Highlight>≈ {roi}×</Highlight>
+              </div>
+              <div className="mt-2 text-[11px] md:text-[12px] text-forest-950/60 leading-snug">
+                ROI vs. $1,799 / month
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <label htmlFor="deck-calls-slider" className="text-[10px] uppercase tracking-[0.22em] text-forest-950/60 font-medium">
+                Calls per day
+              </label>
+              <span className="font-mono text-[13px] text-forest-950 tabular-nums">{calls}</span>
+            </div>
+            <input
+              id="deck-calls-slider"
+              type="range"
+              min={10}
+              max={150}
+              step={5}
+              value={calls}
+              onChange={(e) => setCalls(Number(e.target.value))}
+              className="w-full accent-forest-900 cursor-pointer"
+            />
+            <div className="flex justify-between text-[10px] text-forest-950/45 font-mono mt-1.5 tabular-nums">
+              <span>10</span>
+              <span>150</span>
+            </div>
+          </div>
         </div>
       </div>
     </Slide>
@@ -903,7 +953,7 @@ function Slide10Competition() {
   return (
     <Slide tone="light">
       <div className="relative">
-        <SlideNumber n={10} />
+        <SlideNumber n={8} />
         <Eyebrow>Competitive landscape</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[22ch] mb-10 text-balance">
           The category is validated. <em className="italic font-light">Our lane is empty.</em>
@@ -948,42 +998,66 @@ function Slide10Competition() {
 /* ─── Slide 11 — Traction ───────────────────────────────────────────── */
 
 function Slide11Traction() {
+  /* Live "calls answered" ticker — auto-increments to show momentum. */
+  const [count, setCount] = useState(() => 5284 + Math.floor(Math.random() * 30));
+  useEffect(() => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    const id = setInterval(() => setCount((c) => c + 1), 2800);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-40" />
       <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
-        <SlideNumber n={11} dark />
+        <SlideNumber n={9} dark />
         <Eyebrow dark>Traction</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-ivory-50 max-w-[20ch] mb-10 text-balance">
           Early signal from the <em className="italic font-light">real world</em>.
         </h2>
 
-        <div className="grid md:grid-cols-4 gap-6 mb-10">
+        {/* Live counter */}
+        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 mb-10">
+          <div className="font-serif text-[56px] md:text-[80px] font-normal tracking-[-0.03em] leading-[0.9] text-ivory-50 tabular-nums">
+            {count.toLocaleString()}
+          </div>
+          <div className="text-[13px] text-ivory-100/75 leading-[1.5] max-w-xs">
+            guest calls answered this week
+            <span className="inline-flex items-center gap-1 ml-3 text-ivory-100/55">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ivory-100 opacity-70" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ivory-100/80" />
+              </span>
+              live
+            </span>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-4 gap-6 mb-8 pt-6 border-t border-ivory-100/15">
           {[
-            { v: <FillIn>N</FillIn>, l: 'Paid pilots signed' },
-            { v: <FillIn>$X</FillIn>, l: 'MRR run-rate' },
-            { v: <FillIn>N</FillIn>, l: 'Calls answered / month' },
+            { v: <FillIn>N</FillIn>, l: 'Paid pilots' },
+            { v: <FillIn>$X</FillIn>, l: 'MRR' },
+            { v: <FillIn>N</FillIn>, l: 'Calls / month' },
             { v: <FillIn>$X</FillIn>, l: 'Bookings captured' },
           ].map((s, i) => (
-            <div key={i} className="border-t border-ivory-100/20 pt-4">
-              <div className="font-serif text-[44px] md:text-[56px] font-normal tracking-[-0.025em] leading-[0.95] text-ivory-50 mb-3">
+            <div key={i}>
+              <div className="font-serif text-[36px] md:text-[44px] font-normal tracking-[-0.02em] leading-[0.95] text-ivory-50 mb-2">
                 {s.v}
               </div>
-              <div className="text-[11px] uppercase tracking-[0.22em] text-ivory-100/65 font-medium">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-ivory-100/65 font-medium">
                 {s.l}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="rounded-3xl bg-ivory-50/[0.06] border border-ivory-100/15 p-7 md:p-8 max-w-3xl backdrop-blur-sm">
-          <Sparkles className="w-4 h-4 text-acid-400 mb-4" />
-          <p className="font-serif text-[22px] md:text-[26px] font-light italic leading-[1.3] text-ivory-50 text-pretty">
-            "<FillIn>GM quote — 'Arvy caught a $640 booking at 2am that would've gone to Booking.com. Sold me instantly.'</FillIn>"
+        <div className="rounded-3xl bg-ivory-50/[0.06] border border-ivory-100/15 p-6 md:p-7 max-w-3xl backdrop-blur-sm">
+          <Sparkles className="w-4 h-4 text-acid-400 mb-3" />
+          <p className="font-serif text-[19px] md:text-[22px] font-light italic leading-[1.3] text-ivory-50 text-pretty">
+            "<FillIn>Arvy caught a $640 booking at 2am that would've gone to Booking.com.</FillIn>"
           </p>
-          <div className="mt-5 text-[13px] text-ivory-100/70">
-            — <FillIn>GM name, property, city</FillIn>
-          </div>
+          <div className="mt-3 text-[12px] text-ivory-100/70">— <FillIn>GM, property, city</FillIn></div>
         </div>
       </div>
     </section>
@@ -996,22 +1070,24 @@ function Slide12Team() {
   return (
     <Slide tone="light">
       <div className="relative">
-        <SlideNumber n={12} />
-        <Eyebrow>Team</Eyebrow>
-        <h2 className="font-serif text-[44px] md:text-[64px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[18ch] mb-12 text-balance">
-          Built by people who've been <em className="italic font-light">on the line.</em>
+        <SlideNumber n={10} />
+        <Eyebrow>Team · founder-product fit</Eyebrow>
+        <h2 className="font-serif text-[40px] md:text-[56px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[20ch] mb-4 text-balance">
+          I lived the missed call <em className="italic font-light">every shift.</em>
         </h2>
+        <p className="text-[15px] md:text-[17px] text-forest-950/75 italic font-serif font-light leading-[1.45] max-w-[54ch] mb-10">
+          Three-plus years in US hotel ops. This isn't a thesis — it's the job I had.
+        </p>
 
-        <div className="grid md:grid-cols-2 gap-10">
+        <div className="grid md:grid-cols-2 gap-8">
           <TeamCard
             initial="R"
             name="Rakhmatjon"
             role="Founder"
             bio={
               <>
-                3+ years in US hotel operations — front desk through ops at{' '}
-                <FillIn>HIE / Holiday Inn properties</FillIn>. Bilingual EN/UZ. Personal network of{' '}
-                <FillIn>~N hotelier relationships</FillIn> across OH / KY.
+                3+ yrs US hotel ops at <FillIn>HIE / Holiday Inn</FillIn>. Bilingual EN/UZ.
+                Personal network: <FillIn>~N hoteliers</FillIn> across OH / KY.
               </>
             }
           />
@@ -1021,19 +1097,10 @@ function Slide12Team() {
             role="Technical Co-Founder"
             bio={
               <>
-                <FillIn>Engineer with voice AI / systems background — specific prior work</FillIn>. Owns the streaming voice pipeline, PMS integrations, reliability.
+                <FillIn>Voice AI / systems engineer</FillIn>. Owns the streaming pipeline, PMS integrations, reliability.
               </>
             }
           />
-        </div>
-
-        <div className="mt-12 pt-8 border-t border-forest-950/10">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/55 font-medium mb-4">
-            Advisors
-          </div>
-          <p className="text-[14px] text-ivory-700 leading-[1.55] max-w-2xl">
-            <FillIn>Advisor names — ideally 1 hospitality-ops veteran and 1 voice-AI / SaaS operator</FillIn>
-          </p>
         </div>
       </div>
     </Slide>
@@ -1069,85 +1136,7 @@ function TeamCard({
   );
 }
 
-/* ─── Slide 13 — Roadmap ────────────────────────────────────────────── */
-
-function Slide13Roadmap() {
-  const phases = [
-    {
-      when: 'Q1–Q2 2026',
-      title: 'Land the wedge',
-      items: ['10 paid Cincinnati pilots', 'Harden product + voice quality', '2 more PMS integrations'],
-    },
-    {
-      when: 'Q3–Q4 2026',
-      title: 'Prove repeatability',
-      items: ['50 paying properties', '~$1M ARR run-rate', 'First 2 hires: 1 SE + 1 GTM'],
-    },
-    {
-      when: '2027',
-      title: 'Expand beyond Midwest',
-      items: ['300+ properties', 'AAHOA + marketplace distribution', 'Language #2 (Spanish)'],
-    },
-  ];
-
-  const fundsUse = [
-    { pct: '50%', label: 'Engineering', detail: 'Voice reliability, PMS integrations, observability' },
-    { pct: '30%', label: 'Go-to-market', detail: 'First GTM hire, diaspora field events, referrals' },
-    { pct: '15%', label: 'PMS partnerships', detail: 'Certifications, marketplace listings, co-marketing' },
-    { pct: '5%', label: 'Ops & legal', detail: 'Compliance, contracts, infrastructure' },
-  ];
-
-  return (
-    <Slide tone="white">
-      <div className="relative">
-        <SlideNumber n={13} />
-        <Eyebrow>Roadmap & use of funds</Eyebrow>
-        <h2 className="font-serif text-[42px] md:text-[56px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 mb-10 text-balance max-w-[20ch]">
-          Land, repeat, <em className="italic font-light">expand.</em>
-        </h2>
-
-        <div className="grid md:grid-cols-3 gap-6 mb-10">
-          {phases.map((p, i) => (
-            <div key={p.when} className="rounded-2xl bg-ivory-50 border border-forest-950/10 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-mono text-[11px] text-forest-950/45">{String(i + 1).padStart(2, '0')}</span>
-                <span className="text-[10px] uppercase tracking-[0.22em] text-forest-950/55 font-medium">{p.when}</span>
-              </div>
-              <h3 className="font-serif text-[22px] font-normal tracking-[-0.015em] text-forest-950 mb-4">
-                {p.title}
-              </h3>
-              <ul className="space-y-2 text-[13px] text-ivory-700 leading-[1.5]">
-                {p.items.map((it) => (
-                  <li key={it} className="flex items-start gap-2">
-                    <span className="w-1 h-1 rounded-full bg-forest-900 mt-2 flex-shrink-0" />
-                    {it}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="pt-8 border-t border-forest-950/10">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/55 font-medium mb-5">
-            Use of funds
-          </div>
-          <div className="grid md:grid-cols-4 gap-6">
-            {fundsUse.map((f) => (
-              <div key={f.label}>
-                <div className="font-serif text-[32px] md:text-[38px] text-forest-950 tracking-tight tabular-nums mb-2">
-                  {f.pct}
-                </div>
-                <div className="text-[13px] font-medium text-forest-950 mb-1">{f.label}</div>
-                <div className="text-[12px] text-ivory-700 leading-[1.5]">{f.detail}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </Slide>
-  );
-}
+/* Slide 13 (Roadmap) removed — milestones + use-of-funds folded into the Ask. */
 
 /* ─── Slide 14 — Exit strategy ──────────────────────────────────────── */
 
@@ -1185,7 +1174,9 @@ function Slide14Exit() {
   return (
     <Slide tone="warm">
       <div className="relative">
-        <SlideNumber n={14} />
+        <div className="absolute top-8 right-10 text-[10px] uppercase tracking-[0.28em] text-forest-950/35 font-mono tabular-nums">
+          Appendix
+        </div>
         <Eyebrow>Exit strategy</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[64px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[20ch] mb-10 text-balance">
           Multiple credible buyers. <em className="italic font-light">3–5 year window.</em>
@@ -1233,38 +1224,61 @@ function Slide15Ask() {
     <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-50" />
       <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
-        <SlideNumber n={15} dark />
-        <ArryveMark className="h-7 mb-8 opacity-80" invert />
+        <SlideNumber n={11} dark />
+        <ArryveMark className="h-7 mb-6 opacity-80" invert />
         <Eyebrow dark>The ask</Eyebrow>
-        <h2 className="font-serif text-[72px] md:text-[112px] font-normal tracking-[-0.03em] leading-[0.94] text-ivory-50 mb-6">
+        <h2 className="font-serif text-[64px] md:text-[96px] font-normal tracking-[-0.03em] leading-[0.94] text-ivory-50 mb-4">
           Raising <FillIn>$X</FillIn>
         </h2>
-        <p className="font-serif text-[26px] md:text-[36px] font-light italic text-ivory-100/85 max-w-[26ch] leading-[1.2] mb-12 text-pretty">
+        <p className="font-serif text-[22px] md:text-[30px] font-light italic text-ivory-100/85 max-w-[26ch] leading-[1.2] mb-10 text-pretty">
           at <FillIn>$Y</FillIn> pre-money.
         </p>
 
-        <div className="rounded-3xl bg-ivory-50/[0.05] border border-ivory-100/15 p-7 md:p-8 max-w-3xl backdrop-blur-sm">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-ivory-100/65 font-medium mb-5">
-            Milestones this round funds
+        <div className="grid md:grid-cols-2 gap-5 max-w-4xl">
+          <div className="rounded-3xl bg-ivory-50/[0.05] border border-ivory-100/15 p-6 backdrop-blur-sm">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-ivory-100/65 font-medium mb-4">
+              18 months buys
+            </div>
+            <ul className="space-y-2.5 text-[14px] text-ivory-100/90 leading-[1.45]">
+              {[
+                '50 paying properties',
+                'Seven-figure ARR',
+                'Validated Cincinnati playbook',
+                'First 10 IHG franchisees outside diaspora',
+              ].map((m) => (
+                <li key={m} className="flex items-start gap-2.5">
+                  <Check className="w-3.5 h-3.5 text-acid-400 mt-1 flex-shrink-0" />
+                  {m}
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="space-y-3 text-[15px] md:text-base text-ivory-100/90 leading-[1.55]">
-            {[
-              '50 paying properties',
-              'Seven-figure ARR run-rate',
-              'Validated Cincinnati playbook, documented and replicable',
-              'First 10 IHG franchisees outside the diaspora wedge',
-            ].map((m) => (
-              <li key={m} className="flex items-start gap-3">
-                <Check className="w-4 h-4 text-acid-400 mt-1 flex-shrink-0" />
-                {m}
-              </li>
-            ))}
-          </ul>
+
+          <div className="rounded-3xl bg-ivory-50/[0.05] border border-ivory-100/15 p-6 backdrop-blur-sm">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-ivory-100/65 font-medium mb-4">
+              Use of funds
+            </div>
+            <div className="space-y-2 text-[13px] text-ivory-100/90">
+              {[
+                ['50%', 'Engineering'],
+                ['30%', 'Go-to-market'],
+                ['15%', 'PMS partnerships'],
+                ['5%', 'Ops & legal'],
+              ].map(([pct, label]) => (
+                <div key={label} className="flex items-baseline justify-between border-b border-ivory-100/10 pb-2 last:border-0">
+                  <span>{label}</span>
+                  <span className="font-mono tabular-nums text-ivory-100/70">{pct}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="mt-14 flex items-center gap-4 text-sm text-ivory-100/60">
-          <Heart className="w-4 h-4 text-ivory-100/70 fill-ivory-100/70" />
+        <div className="mt-10 flex items-center gap-3 text-[12px] text-ivory-100/55">
+          <Heart className="w-3.5 h-3.5 text-ivory-100/60 fill-ivory-100/60" />
           <span>Made in Cincinnati · Arryve · arryve.com</span>
+          <span className="text-ivory-100/30">·</span>
+          <span className="italic">Press End for exit-strategy appendix</span>
         </div>
       </div>
     </section>
