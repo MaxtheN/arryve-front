@@ -6,6 +6,13 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 
 /* ─── Shared: speech helper ─── */
 
+const HERO_IMAGE_BASE =
+  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop';
+const HERO_IMAGE = `${HERO_IMAGE_BASE}&w=1600&q=80`;
+const HERO_IMAGE_SRC_SET = [640, 960, 1280, 1600, 2400]
+  .map((width) => `${HERO_IMAGE_BASE}&w=${width}&q=80 ${width}w`)
+  .join(', ');
+
 function speakArvy(
   text: string,
   callbacks: { onStart?: () => void; onEnd?: () => void } = {}
@@ -30,6 +37,29 @@ function speakArvy(
   utter.onend = () => callbacks.onEnd?.();
   utter.onerror = () => callbacks.onEnd?.();
   synth.speak(utter);
+}
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+
+function useDocumentVisible() {
+  const [visible, setVisible] = useState(
+    () => typeof document === 'undefined' || document.visibilityState === 'visible'
+  );
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const onVisibilityChange = () => {
+      setVisible(document.visibilityState === 'visible');
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  return visible;
 }
 
 const FadeIn = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => (
@@ -122,12 +152,31 @@ export default function App() {
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const scrolledRef = useRef(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > window.innerHeight * 0.78);
-    onScroll();
+    let ticking = false;
+    const updateScrolled = () => {
+      ticking = false;
+      const next = window.scrollY > window.innerHeight * 0.78;
+      if (next === scrolledRef.current) return;
+      scrolledRef.current = next;
+      setScrolled(next);
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(updateScrolled);
+    };
+
+    updateScrolled();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
   }, []);
 
   const linkCls = scrolled
@@ -199,9 +248,15 @@ function HeroSection() {
     <section className="film-grain relative min-h-[100svh] overflow-hidden text-white">
       <div className="absolute inset-0 overflow-hidden">
         <motion.img
-          src="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=2400&q=85"
+          src={HERO_IMAGE}
+          srcSet={HERO_IMAGE_SRC_SET}
+          sizes="100vw"
           alt="Hotel front desk agent on the phone"
           className="absolute -top-[5%] left-0 w-full h-[112%] object-cover"
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
+          crossOrigin="anonymous"
           style={{ y: imgY }}
         />
       </div>
@@ -305,7 +360,7 @@ function ProblemSection() {
     const unsubscribe = scrollYProgress.on("change", (latest) => {
       const clamped = Math.max(0, Math.min(0.9999, latest));
       const idx = Math.min(total - 1, Math.floor(clamped * total));
-      setActive(idx);
+      setActive((prev) => (prev === idx ? prev : idx));
     });
     return () => unsubscribe();
   }, [scrollYProgress]);
@@ -540,7 +595,7 @@ function HowAnswersSection() {
     const unsubscribe = scrollYProgress.on("change", (latest) => {
       const clamped = Math.max(0, Math.min(0.9999, latest));
       const idx = Math.min(total - 1, Math.floor(clamped * total));
-      setActive(idx);
+      setActive((prev) => (prev === idx ? prev : idx));
     });
     return () => unsubscribe();
   }, [scrollYProgress, scenarios.length]);
@@ -1106,14 +1161,16 @@ function IntegrationsSection() {
 }
 
 function LiveSyncCard({ pms }: { pms: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { margin: '-20% 0px' });
+  const isDocumentVisible = useDocumentVisible();
   const [events, setEvents] = useState(() =>
     SYNC_EVENTS.slice(0, 5).map((e, i) => ({ ...e, id: i }))
   );
   const nextId = useRef(5);
 
   useEffect(() => {
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) return;
+    if (prefersReducedMotion() || !inView || !isDocumentVisible) return;
 
     const interval = setInterval(() => {
       setEvents((prev) => {
@@ -1123,10 +1180,13 @@ function LiveSyncCard({ pms }: { pms: string }) {
       });
     }, 2400);
     return () => clearInterval(interval);
-  }, []);
+  }, [inView, isDocumentVisible]);
 
   return (
-    <div className="rounded-3xl bg-white border border-forest-950/10 shadow-[0_40px_120px_-40px_rgba(3,36,30,0.22)] overflow-hidden">
+    <div
+      ref={ref}
+      className="rounded-3xl bg-white border border-forest-950/10 shadow-[0_40px_120px_-40px_rgba(3,36,30,0.22)] overflow-hidden"
+    >
       <div className="flex items-center justify-between px-6 md:px-8 py-5 border-b border-ivory-200">
         <div className="flex items-center gap-3">
           <span className="relative flex h-2 w-2">
@@ -1506,7 +1566,7 @@ function FAQSection() {
   );
 }
 
-function FAQItem({ question, answer, delay }: { question: string, answer: string, delay: number }) {
+function FAQItem({ question, answer, delay }: { key?: React.Key, question: string, answer: string, delay: number }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -1741,19 +1801,21 @@ function FooterInline() {
 }
 
 function LiveCallCounter() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { margin: '-20% 0px' });
+  const isDocumentVisible = useDocumentVisible();
   const [count, setCount] = useState(() => 5284 + Math.floor(Math.random() * 30));
 
   useEffect(() => {
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) return;
+    if (prefersReducedMotion() || !inView || !isDocumentVisible) return;
     const id = setInterval(() => setCount((c) => c + 1), 3200);
     return () => clearInterval(id);
-  }, []);
+  }, [inView, isDocumentVisible]);
 
   const digits = count.toLocaleString().split('');
 
   return (
-    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 pb-10 mb-10 border-b border-ivory-50/10">
+    <div ref={ref} className="flex flex-wrap items-baseline gap-x-4 gap-y-2 pb-10 mb-10 border-b border-ivory-50/10">
       <div className="inline-flex items-baseline">
         <span className="flex overflow-hidden font-serif text-[32px] md:text-[44px] text-ivory-50 tracking-tight tabular-nums">
           <AnimatePresence initial={false} mode="popLayout">

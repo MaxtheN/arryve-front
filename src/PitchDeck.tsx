@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,6 +22,7 @@ const TOTAL = 15;
 
 export default function PitchDeck() {
   const [current, setCurrent] = useState(0);
+  const [isPrintMode, setIsPrintMode] = useState(false);
 
   const next = useCallback(() => setCurrent((c) => Math.min(c + 1, TOTAL - 1)), []);
   const prev = useCallback(() => setCurrent((c) => Math.max(c - 1, 0)), []);
@@ -44,40 +45,57 @@ export default function PitchDeck() {
     return () => window.removeEventListener('keydown', onKey);
   }, [next, prev]);
 
+  useEffect(() => {
+    const enablePrintMode = () => setIsPrintMode(true);
+    const disablePrintMode = () => setIsPrintMode(false);
+    window.addEventListener('beforeprint', enablePrintMode);
+    window.addEventListener('afterprint', disablePrintMode);
+    return () => {
+      window.removeEventListener('beforeprint', enablePrintMode);
+      window.removeEventListener('afterprint', disablePrintMode);
+    };
+  }, []);
+
   const slides = [
-    <Slide01Title />,
-    <Slide02Problem />,
-    <Slide03WhyNow />,
-    <Slide04Solution />,
-    <Slide05HowItWorks />,
-    <Slide06Founder />,
-    <Slide07Market />,
-    <Slide08GoToMarket />,
-    <Slide09BusinessModel />,
-    <Slide10Competition />,
-    <Slide11Traction />,
-    <Slide12Team />,
-    <Slide13Roadmap />,
-    <Slide14Exit />,
-    <Slide15Ask />,
+    Slide01Title,
+    Slide02Problem,
+    Slide03WhyNow,
+    Slide04Solution,
+    Slide05HowItWorks,
+    Slide06Founder,
+    Slide07Market,
+    Slide08GoToMarket,
+    Slide09BusinessModel,
+    Slide10Competition,
+    Slide11Traction,
+    Slide12Team,
+    Slide13Roadmap,
+    Slide14Exit,
+    Slide15Ask,
   ];
 
   return (
     <div className="relative h-screen w-screen font-sans antialiased text-forest-950 bg-ivory-50 overflow-hidden">
-      {slides.map((slide, i) => (
+      {slides.map((SlideComponent, i) => {
+        const active = i === current;
+        const shouldRender = isPrintMode || active;
+
+        return (
         <div
           key={i}
           className="deck-slide absolute inset-0"
           style={{
-            opacity: i === current ? 1 : 0,
-            pointerEvents: i === current ? 'auto' : 'none',
-            transition: 'opacity 280ms ease',
+            display: shouldRender ? 'block' : 'none',
+            opacity: active ? 1 : 0,
+            pointerEvents: active ? 'auto' : 'none',
+            transition: isPrintMode ? undefined : 'opacity 280ms ease',
           }}
-          aria-hidden={i !== current}
+          aria-hidden={!active}
         >
-          {slide}
+          {shouldRender ? <SlideComponent /> : null}
         </div>
-      ))}
+        );
+      })}
 
       <DeckChrome current={current} total={TOTAL} onJump={setCurrent} onPrev={prev} onNext={next} />
       <SpeedInsights />
@@ -222,6 +240,7 @@ function BrandLogo({
   size = 'md',
   tone = 'auto',
 }: {
+  key?: React.Key;
   domain?: string;
   name: string;
   size?: 'sm' | 'md' | 'lg';

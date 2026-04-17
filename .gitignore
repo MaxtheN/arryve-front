@@ -13,3 +13,5 @@ coverage/
 
 # Playwright QA screenshots (regenerate on demand)
 output/playwright/
+.vercel
+.env*.local
