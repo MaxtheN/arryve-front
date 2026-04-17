@@ -6,6 +6,7 @@ import {
   Heart,
   Sparkles,
 } from 'lucide-react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 /* ─── Design tokens (match landing page) ───────────────────────────────
    forest-950  #03241E  — dark bg / headlines on light
@@ -79,6 +80,7 @@ export default function PitchDeck() {
       ))}
 
       <DeckChrome current={current} total={TOTAL} onJump={setCurrent} onPrev={prev} onNext={next} />
+      <SpeedInsights />
     </div>
   );
 }
@@ -1249,4 +1251,3 @@ function Slide15Ask() {
     </section>
   );
 }
-
