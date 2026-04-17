@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence, useInView, useScroll, useTransform } from 'motion/react';
 import { ArrowRight, ArrowLeft, ChevronDown, Check, RotateCw, Play, Pause, Info, Sparkles, Heart } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 /* ─── Shared: speech helper ─── */
 
@@ -112,6 +113,7 @@ export default function App() {
       </main>
       <Footer />
       <Analytics />
+      <SpeedInsights />
     </div>
   );
 }
