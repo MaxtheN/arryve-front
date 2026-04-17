@@ -48,9 +48,9 @@ function speakArvy(
    Fonts: Fraunces (serif display), Inter (sans body)
 ────────────────────────────────────────────────────────────────────── */
 
-const MAIN_SLIDES = 11; // Main flow. Appendix (Exit) sits at index 11, reachable via End.
-const APPENDIX_INDEX = 11;
-const TOTAL_WITH_APPENDIX = 12;
+const MAIN_SLIDES = 12; // Main flow. Appendix (Exit) sits at index 12, reachable via End.
+const APPENDIX_INDEX = 12;
+const TOTAL_WITH_APPENDIX = 13;
 
 export default function PitchDeck() {
   const [current, setCurrent] = useState(0);
@@ -91,22 +91,23 @@ export default function PitchDeck() {
     };
   }, []);
 
-  // My 11-slide main flow + Slide14Exit as appendix (reach via End key).
-  // Components (not JSX) so remote's lazy-render pattern below can mount
-  // them only when the slide is actually visible (or in print mode).
+  // 12 main slides + Slide14Exit as appendix (reach via End key).
+  // Order follows YC + a16z conventions: one-liner, team, problem, why now,
+  // solution+demo, market, traction, business, GTM, competition, ask.
   const slides = [
-    Slide01Title,
-    Slide02Problem,
-    Slide04Solution,
-    Slide05HowItWorks,
-    Slide07Market,
-    Slide08GoToMarket,
-    Slide09BusinessModel,
-    Slide10Competition,
-    Slide11Traction,
-    Slide12Team,
-    Slide15Ask,
-    Slide14Exit, // appendix — hidden from counter, reach via End
+    Slide01Title,          //  1  Title
+    Slide02WhatWeDo,       //  2  What we do (one-liner)
+    Slide12Team,           //  3  Team (moved up)
+    Slide02Problem,        //  4  Problem
+    Slide05WhyNow,         //  5  Why now
+    Slide06SolutionDemo,   //  6  Solution + demo (merged)
+    Slide07Market,         //  7  Market
+    Slide11Traction,       //  8  Traction (moved before business)
+    Slide09BusinessModel,  //  9  Business model + unit econ
+    Slide08GoToMarket,     // 10  Go-to-market
+    Slide10Competition,    // 11  Competition
+    Slide15Ask,            // 12  Ask
+    Slide14Exit,           // +1  Appendix — Exit strategy (End key)
   ];
 
   return (
@@ -397,7 +398,42 @@ function Slide01Title() {
   );
 }
 
-/* ─── Slide 02 — Problem ─────────────────────────────────────────────── */
+/* ─── Slide 02 — What we do (the YC one-liner) ───────────────────────── */
+
+function Slide02WhatWeDo() {
+  return (
+    <Slide tone="warm">
+      <div className="relative">
+        <SlideNumber n={2} />
+        <Eyebrow>What we do</Eyebrow>
+
+        <ArryveMark className="h-9 mb-10" />
+
+        <h2 className="font-serif text-[48px] md:text-[68px] lg:text-[76px] font-normal tracking-[-0.025em] leading-[1.02] text-forest-950 max-w-[22ch] mb-8 text-balance">
+          The <Highlight>AI front desk voice</Highlight> for small & mid-sized hotels.
+        </h2>
+
+        <p className="font-serif text-[22px] md:text-[28px] font-light italic text-forest-950/80 leading-[1.3] max-w-[42ch] text-pretty mb-10">
+          Every missed call becomes a booking. Every routine question gets handled. Every escalation arrives with context.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-forest-950/60 font-medium">
+          <span className="inline-flex items-center gap-2 rounded-full border border-forest-950/20 bg-white/50 px-3 py-1.5">
+            Holiday Inn Express
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-forest-950/20 bg-white/50 px-3 py-1.5">
+            Holiday Inn
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-forest-950/20 bg-white/50 px-3 py-1.5">
+            Independent properties
+          </span>
+        </div>
+      </div>
+    </Slide>
+  );
+}
+
+/* ─── Slide 04 — Problem ─────────────────────────────────────────────── */
 
 function Slide02Problem() {
   const stats = [
@@ -421,7 +457,7 @@ function Slide02Problem() {
   return (
     <Slide tone="light">
       <div className="relative">
-        <SlideNumber n={2} />
+        <SlideNumber n={4} />
         <Eyebrow>The problem</Eyebrow>
         <h2 className="font-serif text-[48px] md:text-[72px] font-normal tracking-[-0.025em] leading-[1.02] text-forest-950 max-w-[20ch] mb-14 text-balance">
           Hotels are losing bookings <em className="italic font-light"><Highlight>every hour the phone rings</Highlight>.</em>
@@ -453,108 +489,63 @@ function Slide02Problem() {
 
 /* ─── Slide 04 — Solution ─────────────────────────────────────────────── */
 
-function Slide04Solution() {
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const handleHearArvy = () => {
-    if (isSpeaking) {
-      window.speechSynthesis?.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-    speakArvy(
-      "Good evening, thank you for calling. This is Arvy. We have a king available at $189 tonight, breakfast included. Whose name shall I put the reservation under?",
-      { onStart: () => setIsSpeaking(true), onEnd: () => setIsSpeaking(false) },
-    );
-  };
+/* ─── Slide 05 — Why now ──────────────────────────────────────────────── */
+
+function Slide05WhyNow() {
+  const curves = [
+    {
+      n: '01',
+      title: 'Voice AI crossed the line.',
+      body: "Streaming latency under 300ms. Natural prosody. The guest can't tell — and doesn't care to.",
+    },
+    {
+      n: '02',
+      title: 'PMS APIs finally opened up.',
+      body: 'HotelKey, Opera, Cloudbeds, Mews — stable, documented, no longer gated to enterprise integrations.',
+    },
+    {
+      n: '03',
+      title: 'Hotel labor is structurally short.',
+      body: "Front-desk wages up 25%+ post-COVID. Small-property understaffing isn't a cycle — it's the new baseline.",
+    },
+  ];
 
   return (
-    <Slide tone="warm">
-      <div className="relative grid md:grid-cols-[1.15fr_1fr] gap-14 md:gap-20 items-center">
-        <SlideNumber n={3} />
-        <div>
-          <div className="mb-6 flex items-center gap-3">
-            <ArryveMark className="h-7" />
-            <span className="text-[10px] uppercase tracking-[0.24em] text-forest-950/55 font-medium">presents</span>
-          </div>
-          <Eyebrow>Solution</Eyebrow>
-          <h2 className="font-serif text-[52px] md:text-[80px] font-normal tracking-[-0.03em] leading-[1.0] text-forest-950 mb-6 text-balance">
-            Meet <em className="italic font-light">Arvy.</em>
-          </h2>
-          <p className="font-serif text-[22px] md:text-[28px] text-forest-950/85 leading-[1.25] max-w-[26ch] text-pretty mb-8">
-            The AI voice that <Highlight>answers every guest call</Highlight>.
-          </p>
-          <ul className="space-y-3 text-[15px] md:text-base text-forest-950/85 leading-[1.45] mb-8">
-            {[
-              <>Every call, 24/7 — in your hotel's voice</>,
-              <>Captures bookings <strong className="font-medium">live</strong> (writes to your PMS)</>,
-              <>Escalates with context when a human is needed</>,
-            ].map((line, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <Check className="w-4 h-4 text-forest-900 mt-1 flex-shrink-0" />
-                <span>{line}</span>
-              </li>
-            ))}
-          </ul>
+    <Slide tone="white">
+      <div className="relative">
+        <SlideNumber n={5} />
+        <Eyebrow>Why now</Eyebrow>
+        <h2 className="font-serif text-[42px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[22ch] mb-14 text-balance">
+          Three curves crossed in the last <em className="italic font-light">18 months.</em>
+        </h2>
 
-          <button
-            type="button"
-            onClick={handleHearArvy}
-            aria-label={isSpeaking ? 'Stop Arvy' : 'Hear Arvy answer'}
-            className="group inline-flex items-center gap-3 pl-1.5 pr-5 py-1.5 rounded-full border border-forest-950/20 bg-white/60 hover:bg-white transition-colors"
-          >
-            <span className="relative grid place-items-center h-9 w-9 rounded-full bg-forest-950 text-ivory-50">
-              {!isSpeaking && (
-                <span className="absolute inset-0 rounded-full bg-forest-950 opacity-30 animate-ping" />
-              )}
-              <span className="relative">
-                {isSpeaking ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-[1px]" />}
-              </span>
-            </span>
-            <span className="text-sm font-medium text-forest-950">
-              {isSpeaking ? 'Arvy is speaking…' : 'Hear Arvy answer'}
-            </span>
-          </button>
-        </div>
-
-        <div className="rounded-3xl bg-white border border-forest-950/10 shadow-[0_40px_120px_-40px_rgba(3,36,30,0.28)] overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-ivory-200">
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-forest-950/70 font-medium">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-forest-900 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-forest-900" />
-              </span>
-              Live call
-            </div>
-            <div className="text-[11px] text-ivory-600 tabular-nums">11:42 PM</div>
-          </div>
-          <div className="px-6 py-6 space-y-4">
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.22em] text-forest-950/50 font-medium mb-1">Guest</div>
-              <p className="text-[14px] text-forest-950/90 leading-[1.5]">Any chance you have a king tonight?</p>
-            </div>
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.22em] text-forest-950/50 font-medium mb-1">Arvy</div>
-              <p className="text-[14px] text-forest-950/90 leading-[1.5]">
-                One king at $189, breakfast included. Whose name shall I put the reservation under?
+        <div className="grid md:grid-cols-3 gap-8 md:gap-12">
+          {curves.map((c) => (
+            <div key={c.n}>
+              <div className="font-mono text-[13px] text-forest-950/55 tracking-wider mb-4 font-medium">
+                {c.n}
+              </div>
+              <h3 className="font-serif text-[24px] md:text-[28px] font-normal tracking-[-0.015em] leading-[1.15] text-forest-950 mb-4 text-pretty">
+                {c.title}
+              </h3>
+              <p className="text-sm md:text-[15px] text-forest-950/70 leading-[1.6] text-pretty">
+                {c.body}
               </p>
             </div>
-          </div>
-          <div className="px-6 py-4 border-t border-ivory-200 bg-ivory-50 flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 rounded-full bg-forest-950 text-ivory-50 px-3 py-1 text-[9px] uppercase tracking-[0.2em] font-medium">
-              <Check className="w-3 h-3" />
-              Booking captured
-            </div>
-            <div className="text-[11px] text-ivory-600 tabular-nums">0:42 · synced to PMS</div>
-          </div>
+          ))}
+        </div>
+
+        <div className="mt-12 pt-8 border-t border-forest-950/10 text-[16px] md:text-[18px] text-forest-950 italic font-serif font-light max-w-[60ch] text-pretty">
+          Small hotels couldn't afford call centers <span className="not-italic font-sans">or</span> enterprise AI. <Highlight>Now they get both, in one line.</Highlight>
         </div>
       </div>
     </Slide>
   );
 }
 
-/* ─── Slide 05 — How it works ─────────────────────────────────────────── */
+/* ─── Slide 06 — Solution + demo (merged) ────────────────────────────── */
 
-function Slide05HowItWorks() {
+function Slide06SolutionDemo() {
   const scenarios = [
     {
       n: '01',
@@ -583,8 +574,8 @@ function Slide05HowItWorks() {
       label: 'Escalation',
       title: 'Transferred — with the note already written.',
       transcript: [
-        { who: 'Guest', text: 'Can you split our bill three ways across cards?' },
-        { who: 'Arvy', text: "I'll note it on your reservation and put you through." },
+        { who: 'Guest', text: 'Can you split our bill three ways?' },
+        { who: 'Arvy', text: "I'll note it on the reservation and put you through." },
       ],
       outcome: 'Transferred',
       meta: '0:16 · to ext. 100',
@@ -593,18 +584,32 @@ function Slide05HowItWorks() {
 
   const [active, setActive] = useState(0);
   const s = scenarios[active];
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const handleHearArvy = () => {
+    if (isSpeaking) {
+      window.speechSynthesis?.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    speakArvy(
+      "Good evening, thank you for calling. This is Arvy. We have a king available at $189 tonight, breakfast included. Whose name shall I put the reservation under?",
+      { onStart: () => setIsSpeaking(true), onEnd: () => setIsSpeaking(false) },
+    );
+  };
 
   return (
-    <Slide tone="white">
+    <Slide tone="warm">
       <div className="relative">
-        <SlideNumber n={4} />
-        <Eyebrow>How it works</Eyebrow>
-        <h2 className="font-serif text-[42px] md:text-[58px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[20ch] mb-8 text-balance">
-          Three kinds of calls. <em className="italic font-light">One steady voice.</em>
+        <SlideNumber n={6} />
+        <Eyebrow>Solution</Eyebrow>
+
+        <h2 className="font-serif text-[42px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.0] text-forest-950 mb-4 text-balance max-w-[24ch]">
+          Meet <em className="italic font-light">Arvy</em> — the AI voice that <Highlight>answers every guest call</Highlight>.
         </h2>
 
-        {/* Tab strip — click to switch scenarios */}
-        <div className="flex flex-wrap gap-2 mb-6" role="tablist">
+        {/* Scenario tabs */}
+        <div className="flex flex-wrap gap-2 mt-8 mb-6" role="tablist">
           {scenarios.map((sc, i) => (
             <button
               key={sc.n}
@@ -624,42 +629,87 @@ function Slide05HowItWorks() {
           ))}
         </div>
 
-        {/* Active scenario card */}
-        <div className="grid md:grid-cols-[1.1fr_1fr] gap-8 items-start">
-          <div className="rounded-2xl border border-forest-950/10 bg-ivory-50 p-7 md:p-8 min-h-[240px]">
-            <h3 className="font-serif text-[24px] md:text-[28px] font-normal tracking-[-0.015em] leading-[1.2] text-forest-950 mb-5 text-pretty">
+        <div className="grid md:grid-cols-[1fr_1.1fr] gap-10 items-start">
+          {/* Left: value bullets + Hear Arvy */}
+          <div>
+            <h3 className="font-serif text-[22px] md:text-[26px] font-normal tracking-[-0.015em] leading-[1.2] text-forest-950 mb-5 text-pretty">
               {s.title}
             </h3>
-            <div className="space-y-4">
-              {s.transcript.map((t, j) => (
-                <div key={j}>
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/50 font-medium mb-1">
-                    {t.who}
-                  </div>
-                  <p className="text-[14px] md:text-[15px] text-forest-950/90 leading-[1.5]">{t.text}</p>
-                </div>
+            <ul className="space-y-3 text-[14px] md:text-[15px] text-forest-950/85 leading-[1.45] mb-7">
+              {[
+                <>Every call, 24/7 — in your hotel's voice</>,
+                <>Captures bookings <strong className="font-medium">live</strong> (writes to your PMS)</>,
+                <>Escalates with context when a human is needed</>,
+              ].map((line, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <Check className="w-4 h-4 text-forest-900 mt-1 flex-shrink-0" />
+                  <span>{line}</span>
+                </li>
               ))}
-            </div>
-            <div className="mt-5 pt-4 border-t border-forest-950/10 flex items-center justify-between">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-forest-950 text-ivory-50 px-2.5 py-1 text-[9px] uppercase tracking-[0.2em] font-medium">
-                <Check className="w-2.5 h-2.5" />
-                {s.outcome}
+            </ul>
+
+            <button
+              type="button"
+              onClick={handleHearArvy}
+              aria-label={isSpeaking ? 'Stop Arvy' : 'Hear Arvy answer'}
+              className="group inline-flex items-center gap-3 pl-1.5 pr-5 py-1.5 rounded-full border border-forest-950/20 bg-white/60 hover:bg-white transition-colors mb-6"
+            >
+              <span className="relative grid place-items-center h-9 w-9 rounded-full bg-forest-950 text-ivory-50">
+                {!isSpeaking && (
+                  <span className="absolute inset-0 rounded-full bg-forest-950 opacity-30 animate-ping" />
+                )}
+                <span className="relative">
+                  {isSpeaking ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-[1px]" />}
+                </span>
+              </span>
+              <span className="text-sm font-medium text-forest-950">
+                {isSpeaking ? 'Arvy is speaking…' : 'Hear Arvy answer'}
+              </span>
+            </button>
+
+            <div className="pt-5 border-t border-forest-950/10">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/60 font-medium mb-2.5">
+                Works with your PMS
               </div>
-              <span className="text-[10px] text-forest-950/55 tabular-nums">{s.meta}</span>
+              <div className="flex flex-wrap gap-2">
+                <BrandLogo name="HotelKey" size="sm" />
+                <BrandLogo name="Opera" size="sm" />
+                <BrandLogo name="Cloudbeds" size="sm" />
+                <BrandLogo name="Mews" size="sm" />
+                <BrandLogo name="Twilio" size="sm" />
+                <BrandLogo name="Stayntouch" size="sm" />
+              </div>
             </div>
           </div>
 
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/60 font-medium mb-3">
-              Works with your PMS
+          {/* Right: live call card */}
+          <div className="rounded-3xl bg-white border border-forest-950/10 shadow-[0_40px_120px_-40px_rgba(3,36,30,0.28)] overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ivory-200">
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-forest-950/70 font-medium">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-forest-900 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-forest-900" />
+                </span>
+                Live call
+              </div>
+              <div className="text-[11px] text-ivory-600 tabular-nums">11:42 PM</div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <BrandLogo name="HotelKey" size="sm" />
-              <BrandLogo name="Opera" size="sm" />
-              <BrandLogo name="Cloudbeds" size="sm" />
-              <BrandLogo name="Mews" size="sm" />
-              <BrandLogo name="Twilio" size="sm" />
-              <BrandLogo name="Stayntouch" size="sm" />
+            <div className="px-6 py-6 space-y-4 min-h-[160px]">
+              {s.transcript.map((t, j) => (
+                <div key={j}>
+                  <div className="text-[9px] uppercase tracking-[0.22em] text-forest-950/50 font-medium mb-1">
+                    {t.who}
+                  </div>
+                  <p className="text-[14px] text-forest-950/90 leading-[1.5]">{t.text}</p>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-4 border-t border-ivory-200 bg-ivory-50 flex items-center justify-between">
+              <div className="inline-flex items-center gap-2 rounded-full bg-forest-950 text-ivory-50 px-3 py-1 text-[9px] uppercase tracking-[0.2em] font-medium">
+                <Check className="w-3 h-3" />
+                {s.outcome}
+              </div>
+              <div className="text-[11px] text-ivory-600 tabular-nums">{s.meta}</div>
             </div>
           </div>
         </div>
@@ -676,7 +726,7 @@ function Slide07Market() {
   return (
     <Slide tone="white">
       <div className="relative">
-        <SlideNumber n={5} />
+        <SlideNumber n={7} />
         <Eyebrow>Market</Eyebrow>
         <h2 className="font-serif text-[48px] md:text-[68px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 mb-14 text-balance max-w-[18ch]">
           A large, <Highlight>underserved wedge</Highlight>.
@@ -767,7 +817,7 @@ function Slide08GoToMarket() {
   return (
     <Slide tone="warm">
       <div className="relative">
-        <SlideNumber n={6} />
+        <SlideNumber n={10} />
         <Eyebrow>Go to market</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[64px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[20ch] mb-10 text-balance">
           Start in Cincinnati. <em className="italic font-light">Expand on trust.</em>
@@ -814,7 +864,7 @@ function Slide09BusinessModel() {
   return (
     <Slide tone="light">
       <div className="relative grid md:grid-cols-[1fr_1.1fr] gap-14 md:gap-20 items-start">
-        <SlideNumber n={7} />
+        <SlideNumber n={9} />
         <div>
           <Eyebrow>Business model</Eyebrow>
           <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 mb-8 text-balance">
@@ -953,7 +1003,7 @@ function Slide10Competition() {
   return (
     <Slide tone="light">
       <div className="relative">
-        <SlideNumber n={8} />
+        <SlideNumber n={11} />
         <Eyebrow>Competitive landscape</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[22ch] mb-10 text-balance">
           The category is validated. <em className="italic font-light">Our lane is empty.</em>
@@ -1011,7 +1061,7 @@ function Slide11Traction() {
     <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-40" />
       <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
-        <SlideNumber n={9} dark />
+        <SlideNumber n={8} dark />
         <Eyebrow dark>Traction</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-ivory-50 max-w-[20ch] mb-10 text-balance">
           Early signal from the <em className="italic font-light">real world</em>.
@@ -1070,7 +1120,7 @@ function Slide12Team() {
   return (
     <Slide tone="light">
       <div className="relative">
-        <SlideNumber n={10} />
+        <SlideNumber n={3} />
         <Eyebrow>Team · founder-product fit</Eyebrow>
         <h2 className="font-serif text-[40px] md:text-[56px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[20ch] mb-4 text-balance">
           I lived the missed call <em className="italic font-light">every shift.</em>
@@ -1224,7 +1274,7 @@ function Slide15Ask() {
     <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-50" />
       <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
-        <SlideNumber n={11} dark />
+        <SlideNumber n={12} dark />
         <ArryveMark className="h-7 mb-6 opacity-80" invert />
         <Eyebrow dark>The ask</Eyebrow>
         <h2 className="font-serif text-[64px] md:text-[96px] font-normal tracking-[-0.03em] leading-[0.94] text-ivory-50 mb-4">
