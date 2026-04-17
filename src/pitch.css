@@ -1,0 +1,27 @@
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+@media print {
+  html, body, #root {
+    height: auto;
+    overflow: visible;
+  }
+
+  .deck-chrome { display: none !important; }
+
+  .deck-slide {
+    page-break-after: always;
+    break-after: page;
+    height: 100vh;
+    min-height: 100vh;
+    transform: none !important;
+    opacity: 1 !important;
+    position: relative !important;
+  }
+}
