@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Check,
   Mail,
-  Calendar,
   Lock,
   Heart,
   Play,
@@ -964,48 +963,26 @@ function SlideCTA() {
           Let's get Arvy on <em className="italic font-light">your line.</em>
         </h2>
         <p className="font-serif text-[22px] md:text-[28px] font-light italic text-ivory-100/85 max-w-[36ch] leading-[1.2] mb-12 text-pretty">
-          Book a 30-minute demo. See your own property's calls in a live Arvy simulation.
+          Email us to set up a demo. See your own property's calls in a live Arvy simulation.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-5 max-w-4xl mb-10">
-          <a
-            href="https://cal.com/arryve/demo"
-            target="_blank"
-            rel="noreferrer"
-            className="group rounded-3xl bg-ivory-50 text-forest-950 p-6 md:p-7 flex items-start gap-4 hover:bg-white transition-colors"
-          >
-            <div className="h-12 w-12 rounded-full bg-forest-950 text-ivory-50 grid place-items-center flex-shrink-0">
-              <Calendar className="w-5 h-5" />
+        <a
+          href="mailto:contact@tryarryve.com"
+          className="group inline-flex items-center gap-5 rounded-3xl bg-ivory-50 text-forest-950 p-6 md:p-7 hover:bg-white transition-colors max-w-2xl mb-10"
+        >
+          <div className="h-14 w-14 rounded-full bg-forest-950 text-ivory-50 grid place-items-center flex-shrink-0">
+            <Mail className="w-6 h-6" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/60 font-medium mb-1.5">
+              Email us
             </div>
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/60 font-medium mb-1.5">
-                Book the demo
-              </div>
-              <div className="font-serif text-[22px] md:text-[26px] text-forest-950 leading-tight">
-                cal.com/arryve/demo
-              </div>
-              <div className="text-[13px] text-forest-950/65 mt-2">30 minutes · pick a time that works</div>
+            <div className="font-serif text-[24px] md:text-[32px] text-forest-950 leading-tight">
+              contact@tryarryve.com
             </div>
-          </a>
-
-          <a
-            href="mailto:rakhmatjon@arryve.com"
-            className="group rounded-3xl bg-ivory-50/[0.06] border border-ivory-100/20 p-6 md:p-7 flex items-start gap-4 hover:bg-ivory-50/[0.1] transition-colors backdrop-blur-sm"
-          >
-            <div className="h-12 w-12 rounded-full bg-ivory-50 text-forest-950 grid place-items-center flex-shrink-0">
-              <Mail className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.22em] text-ivory-100/70 font-medium mb-1.5">
-                Or email us
-              </div>
-              <div className="font-serif text-[22px] md:text-[26px] text-ivory-50 leading-tight">
-                rakhmatjon@arryve.com
-              </div>
-              <div className="text-[13px] text-ivory-100/65 mt-2">Usually reply within a few hours</div>
-            </div>
-          </a>
-        </div>
+            <div className="text-[13px] text-forest-950/65 mt-2">Usually reply within a few hours</div>
+          </div>
+        </a>
 
         <div className="flex items-center gap-3 text-[12px] text-ivory-100/55">
           <Heart className="w-3.5 h-3.5 text-ivory-100/60 fill-ivory-100/60" />
