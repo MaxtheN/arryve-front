@@ -1319,7 +1319,7 @@ function EngineeringNoteSection() {
                 N
               </div>
               <div>
-                <div className="text-sm font-medium text-forest-950">Nurislombek</div>
+                <div className="text-sm font-medium text-forest-950">Nurislom</div>
                 <div className="text-xs text-ivory-700">Technical Co-Founder, Arryve</div>
               </div>
             </div>

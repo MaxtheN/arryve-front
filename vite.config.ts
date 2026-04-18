@@ -20,6 +20,8 @@ export default defineConfig(({mode}) => {
         input: {
           main: path.resolve(__dirname, 'index.html'),
           pitch: path.resolve(__dirname, 'pitch.html'),
+          pitchru: path.resolve(__dirname, 'pitchru.html'),
+          pitchuz: path.resolve(__dirname, 'pitchuz.html'),
         },
       },
     },
