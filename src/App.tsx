@@ -12,6 +12,10 @@ const HERO_IMAGE = `${HERO_IMAGE_BASE}&w=1600&q=80`;
 const HERO_IMAGE_SRC_SET = [640, 960, 1280, 1600, 2400]
   .map((width) => `${HERO_IMAGE_BASE}&w=${width}&q=80 ${width}w`)
   .join(', ');
+const CONTACT_EMAIL = 'contact@tryarryve.com';
+const MAILTO_CONTACT_URL = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Arryve demo')}`;
+const DEFAULT_BOOK_DEMO_URL = 'https://calendar.app.google/eo9uCycR6vUZLAau8';
+const BOOK_DEMO_URL = import.meta.env.VITE_BOOK_DEMO_URL || DEFAULT_BOOK_DEMO_URL;
 
 function speakArvy(
   text: string,
@@ -231,7 +235,9 @@ function Navbar() {
           <a href="#faq" className={linkCls}>FAQ</a>
         </div>
         <a
-          href="#book-demo"
+          href={BOOK_DEMO_URL}
+          target="_blank"
+          rel="noreferrer"
           className={`px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
             scrolled
               ? "bg-forest-950 text-ivory-50 hover:bg-forest-900"
@@ -312,7 +318,9 @@ function HeroSection() {
               </p>
               <div className="flex flex-wrap items-center gap-4 md:gap-5">
                 <a
-                  href="#book-demo"
+                  href={BOOK_DEMO_URL}
+                  target="_blank"
+                  rel="noreferrer"
                   className="inline-flex items-center gap-2 bg-ivory-50 text-forest-950 px-6 py-3 rounded-full text-sm font-medium hover:bg-white transition-colors group"
                 >
                   Book a demo
@@ -1429,7 +1437,9 @@ function PricingSection() {
               Cancel anytime. The first 14 days are a live pilot — keep the PMS sync, test every scenario, and only continue if it's pulling its weight.
             </p>
             <a
-              href="#book-demo"
+              href={BOOK_DEMO_URL}
+              target="_blank"
+              rel="noreferrer"
               className="inline-flex items-center gap-2 bg-forest-950 text-ivory-50 px-6 py-3 rounded-full text-sm font-medium hover:bg-forest-900 transition-colors group"
             >
               Start a pilot
@@ -1570,10 +1580,10 @@ function FAQSection() {
             <p className="text-base text-ivory-700 leading-[1.6] text-pretty">
               Don't see yours?{' '}
               <a
-                href="#book-demo"
+                href={MAILTO_CONTACT_URL}
                 className="text-forest-950 underline underline-offset-[6px] decoration-forest-950/30 hover:decoration-forest-950 transition-colors"
               >
-                Ask on the call
+                Email us
               </a>
               .
             </p>
@@ -1629,33 +1639,7 @@ function FAQItem({ question, answer, delay }: { key?: React.Key, question: strin
 
 /* ─── Book a demo (final CTA + form) ─── */
 
-const GOOGLE_SHEET_URL = import.meta.env.VITE_GOOGLE_SHEET_URL || '';
-
 function BookDemoSection() {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus('sending');
-    try {
-      await fetch(GOOGLE_SHEET_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, timestamp: new Date().toISOString() }),
-      });
-      setStatus('sent');
-      setForm({ name: '', email: '', phone: '', message: '' });
-    } catch {
-      setStatus('error');
-    }
-  };
-
   return (
     <section
       id="book-demo"
@@ -1672,7 +1656,7 @@ function BookDemoSection() {
             Answer <em className="italic font-light">every</em> call.
           </h2>
           <p className="text-base md:text-lg text-ivory-100/80 leading-[1.6] max-w-md text-pretty mb-7">
-            30 minutes. We'll place a few live calls to your property together and show you exactly what Arryve does with each one.
+            30 minutes on Google Meet. Pick a time that works and we'll join from {CONTACT_EMAIL} to walk through live calls, PMS sync, and rollout timing.
           </p>
           <div className="space-y-2.5 text-sm text-ivory-100/75">
             <div className="flex items-center gap-2.5">
@@ -1692,48 +1676,43 @@ function BookDemoSection() {
 
         <FadeIn delay={0.12}>
           <div className="rounded-3xl bg-ivory-50/[0.04] backdrop-blur-sm border border-ivory-50/10 p-6 md:p-8">
-            {status === 'sent' ? (
-              <div className="flex flex-col items-center justify-center text-center py-10">
-                <div className="h-12 w-12 rounded-full bg-ivory-50/10 border border-ivory-50/20 grid place-items-center mb-5">
-                  <Check className="w-5 h-5 text-ivory-50" />
-                </div>
-                <h3 className="font-serif text-2xl md:text-3xl text-ivory-50 mb-3">Thank you.</h3>
-                <p className="text-base text-ivory-100/75 leading-[1.6] text-pretty max-w-sm">
-                  We'll reach out within 24 hours to schedule your demo.
-                </p>
+            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-ivory-100/60 mb-5">
+              <span className="h-px w-8 bg-ivory-100/35" />
+              Google Workspace scheduling
+            </div>
+            <h3 className="font-serif text-[32px] md:text-[42px] leading-[1.02] tracking-[-0.02em] text-ivory-50 mb-4 text-balance">
+              Schedule a demo with <span className="italic font-light">{CONTACT_EMAIL}</span>.
+            </h3>
+            <p className="text-base text-ivory-100/72 leading-[1.65] text-pretty max-w-lg mb-8">
+              Use the booking link to open Google Calendar and lock in a time. If you'd rather start over email, write to {CONTACT_EMAIL} and we'll coordinate directly.
+            </p>
+            <div className="space-y-4">
+              <a
+                href={BOOK_DEMO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full bg-ivory-50 text-forest-950 py-3.5 rounded-full text-sm font-medium hover:bg-white transition-colors inline-flex items-center justify-center gap-2 group"
+              >
+                Schedule in Google Calendar
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </a>
+              <a
+                href={MAILTO_CONTACT_URL}
+                className="w-full rounded-full border border-ivory-50/15 bg-ivory-50/[0.02] py-3.5 px-5 text-sm text-ivory-50/85 hover:bg-ivory-50/[0.06] hover:text-white transition-colors inline-flex items-center justify-center"
+              >
+                {CONTACT_EMAIL}
+              </a>
+            </div>
+            <div className="mt-8 pt-6 border-t border-ivory-50/10 grid sm:grid-cols-2 gap-4 text-sm text-ivory-100/72">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-ivory-100/45 font-medium mb-2">Meeting format</div>
+                Google Meet with a 30-minute working session focused on your current call volume and PMS workflow.
               </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <FormField label="Full name" name="name" value={form.name} onChange={handleChange} placeholder="Jane Smith" />
-                <FormField label="Email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="jane@hotel.com" />
-                <FormField label="Phone number" name="phone" type="tel" value={form.phone} onChange={handleChange} placeholder="+1 (555) 000-0000" />
-                <div>
-                  <label htmlFor="message" className="block text-[11px] uppercase tracking-[0.22em] text-ivory-100/60 mb-2 font-medium">
-                    Message <span className="normal-case tracking-normal text-ivory-100/40">(optional)</span>
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={2}
-                    value={form.message}
-                    onChange={handleChange}
-                    placeholder="Tell us about your hotel..."
-                    className="w-full px-4 py-3 rounded-xl bg-ivory-50/[0.04] border border-ivory-50/12 text-ivory-50 placeholder:text-ivory-100/35 focus:outline-none focus:border-ivory-50/50 transition-colors resize-none"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={status === 'sending'}
-                  className="w-full bg-ivory-50 text-forest-950 py-3.5 rounded-full text-sm font-medium hover:bg-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 group"
-                >
-                  {status === 'sending' ? 'Sending…' : 'Request a demo'}
-                  {status !== 'sending' && <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />}
-                </button>
-                {status === 'error' && (
-                  <p className="text-sm text-red-300 text-center">Something went wrong. Please try again.</p>
-                )}
-              </form>
-            )}
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-ivory-100/45 font-medium mb-2">Need a direct intro?</div>
+                Reply from your hotel email and we'll follow up from <a href={MAILTO_CONTACT_URL} className="text-ivory-50 underline underline-offset-4 decoration-ivory-100/25 hover:decoration-ivory-50">{CONTACT_EMAIL}</a>.
+              </div>
+            </div>
           </div>
         </FadeIn>
       </div>
@@ -1742,35 +1721,6 @@ function BookDemoSection() {
         <FooterInline />
       </div>
     </section>
-  );
-}
-
-function FormField({
-  label, name, value, onChange, placeholder, type = 'text',
-}: {
-  label: string;
-  name: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder: string;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label htmlFor={name} className="block text-[11px] uppercase tracking-[0.22em] text-ivory-100/60 mb-2 font-medium">
-        {label}
-      </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        required
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="w-full px-4 py-3 rounded-xl bg-ivory-50/[0.04] border border-ivory-50/12 text-ivory-50 placeholder:text-ivory-100/35 focus:outline-none focus:border-ivory-50/50 transition-colors"
-      />
-    </div>
   );
 }
 
@@ -1806,7 +1756,7 @@ function FooterInline() {
         ]} />
         <FooterCol title="Company" links={[
           { label: "About", href: "#" },
-          { label: "Contact", href: "#" },
+          { label: "Contact", href: MAILTO_CONTACT_URL },
         ]} />
         <FooterCol title="Legal" links={[
           { label: "Privacy", href: "#" },
