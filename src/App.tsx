@@ -416,7 +416,7 @@ function ProblemSection() {
       className="relative bg-ivory-50"
       style={{ height: `${PROBLEM_STATS.length * 100}svh` }}
     >
-      <div className="sticky top-0 h-svh flex items-center px-5 sm:px-8 md:px-12">
+      <div className="sticky top-0 h-svh flex items-center px-5 sm:px-8 md:px-12 overflow-y-auto lg:overflow-visible">
         <div className="max-w-6xl mx-auto w-full grid lg:grid-cols-[1fr_1.05fr] gap-14 lg:gap-20 items-center">
           <div>
             <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-forest-950/60 mb-8">
@@ -651,7 +651,7 @@ function HowAnswersSection() {
       className="relative bg-white"
       style={{ height: `${scenarios.length * 100}svh` }}
     >
-      <div className="sticky top-0 h-svh flex items-center px-5 sm:px-8 md:px-12 py-12">
+      <div className="sticky top-0 h-svh flex items-center px-5 sm:px-8 md:px-12 py-12 overflow-y-auto lg:overflow-visible">
         <div className="max-w-6xl mx-auto w-full">
           <div className="mb-10 md:mb-12">
             <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-forest-950/60 mb-6">

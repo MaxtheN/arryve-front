@@ -182,8 +182,8 @@ function DeckChrome({
             ? 'Ilova'
             : `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`}
         </span>
-        <span className="w-px h-4 bg-forest-950/15" />
-        <div className="flex items-center gap-1">
+        <span className="hidden sm:inline-block w-px h-4 bg-forest-950/15" />
+        <div className="hidden sm:flex items-center gap-1">
           {Array.from({ length: total }).map((_, i) => (
             <button
               key={i}
@@ -230,10 +230,12 @@ function Slide({
     white: 'bg-white text-forest-950',
   }[tone];
 
-  const pad = padding === 'tight' ? 'px-8 md:px-14 py-10' : 'px-12 md:px-20 py-14 md:py-16';
+  const pad = padding === 'tight'
+    ? 'px-6 md:px-14 py-10 pb-28 md:pb-10'
+    : 'px-6 md:px-20 py-10 md:py-16 pb-28 md:pb-16';
 
   return (
-    <section className={`${bg} h-full w-full flex items-center overflow-hidden`}>
+    <section className={`${bg} h-full w-full flex items-start md:items-center overflow-y-auto md:overflow-hidden`}>
       <div className={`max-w-7xl mx-auto w-full ${pad}`}>{children}</div>
     </section>
   );
@@ -355,9 +357,9 @@ function ArryveMark({
 
 function Slide01Title() {
   return (
-    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
+    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-start md:items-center overflow-y-auto md:overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-50" />
-      <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
+      <div className="relative z-[3] max-w-6xl mx-auto w-full px-6 md:px-20 py-10 md:py-0 pb-28 md:pb-0">
         <SlideNumber n={1} dark />
         <Eyebrow dark>Seed bosqichi · 2026</Eyebrow>
 
@@ -1040,9 +1042,9 @@ function Slide11Traction() {
   }, []);
 
   return (
-    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
+    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-start md:items-center overflow-y-auto md:overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-40" />
-      <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
+      <div className="relative z-[3] max-w-6xl mx-auto w-full px-6 md:px-20 py-10 md:py-0 pb-28 md:pb-0">
         <SlideNumber n={8} dark />
         <Eyebrow dark>Trakshen</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-ivory-50 max-w-[20ch] mb-10 text-balance">
@@ -1271,9 +1273,9 @@ function Slide14Exit() {
 
 function Slide15Ask() {
   return (
-    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
+    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-start md:items-center overflow-y-auto md:overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-50" />
-      <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
+      <div className="relative z-[3] max-w-6xl mx-auto w-full px-6 md:px-20 py-10 md:py-0 pb-28 md:pb-0">
         <SlideNumber n={11} dark />
         <ArryveMark className="h-7 mb-6 opacity-80" invert />
         <Eyebrow dark>Investitsiya so‘rovi</Eyebrow>

@@ -171,8 +171,8 @@ function DeckChrome({
         <span className="text-[10px] uppercase tracking-[0.22em] text-forest-950/60 font-medium tabular-nums">
           {String(current + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
-        <span className="w-px h-4 bg-forest-950/15" />
-        <div className="flex items-center gap-1">
+        <span className="hidden sm:inline-block w-px h-4 bg-forest-950/15" />
+        <div className="hidden sm:flex items-center gap-1">
           {Array.from({ length: total }).map((_, i) => (
             <button
               key={i}
@@ -205,8 +205,8 @@ function Slide({
   }[tone];
 
   return (
-    <section className={`${bg} h-full w-full flex items-center overflow-hidden`}>
-      <div className="max-w-7xl mx-auto w-full px-12 md:px-20 py-14 md:py-16">{children}</div>
+    <section className={`${bg} h-full w-full flex items-start md:items-center overflow-y-auto md:overflow-hidden`}>
+      <div className="max-w-7xl mx-auto w-full px-6 md:px-20 py-10 md:py-16 pb-28 md:pb-16">{children}</div>
     </section>
   );
 }
@@ -309,9 +309,9 @@ function ArryveMark({
 
 function SlideHook() {
   return (
-    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
+    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-start md:items-center overflow-y-auto md:overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-50" />
-      <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
+      <div className="relative z-[3] max-w-6xl mx-auto w-full px-6 md:px-20 py-10 md:py-0 pb-28 md:pb-0">
         <SlideNumber n={1} dark />
         <Eyebrow dark>For hotel operators</Eyebrow>
 
@@ -952,9 +952,9 @@ function SlideSecurity() {
 
 function SlideCTA() {
   return (
-    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-center overflow-hidden">
+    <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-start md:items-center overflow-y-auto md:overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-50" />
-      <div className="relative z-[3] max-w-6xl mx-auto w-full px-12 md:px-20">
+      <div className="relative z-[3] max-w-6xl mx-auto w-full px-6 md:px-20 py-10 md:py-0 pb-28 md:pb-0">
         <SlideNumber n={10} dark />
         <ArryveMark className="h-8 mb-8 opacity-85" invert />
         <Eyebrow dark>Ready when you are</Eyebrow>
