@@ -15,32 +15,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
    OYGUL, HotelKey, Opera, Cloudbeds, Mews, Twilio, Stayntouch, etc.) and
    numeric tokens kept as-is. */
 
-function speakArvy(
-  text: string,
-  callbacks: { onStart?: () => void; onEnd?: () => void } = {},
-) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    callbacks.onEnd?.();
-    return;
-  }
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 1.0;
-  utter.pitch = 1.02;
-  utter.lang = 'ru-RU';
-  const voices = synth.getVoices();
-  const voice =
-    voices.find((v) => v.lang === 'ru-RU' && /female/i.test(v.name)) ||
-    voices.find((v) => v.lang === 'ru-RU') ||
-    voices.find((v) => v.lang.startsWith('ru')) ||
-    voices.find((v) => v.lang.startsWith('en'));
-  if (voice) utter.voice = voice;
-  utter.onstart = () => callbacks.onStart?.();
-  utter.onend = () => callbacks.onEnd?.();
-  utter.onerror = () => callbacks.onEnd?.();
-  synth.speak(utter);
-}
+import { playArvyVoice, stopArvyVoice, VOICES } from './voice';
 
 const MAIN_SLIDES = 11;
 const APPENDIX_INDEX = 11;
@@ -594,14 +569,14 @@ function Slide06SolutionDemo() {
 
   const handleHearArvy = () => {
     if (isSpeaking) {
-      window.speechSynthesis?.cancel();
+      stopArvyVoice();
       setIsSpeaking(false);
       return;
     }
-    speakArvy(
-      "Добрый вечер, спасибо за звонок. Это Arvy. У нас есть номер с king-size кроватью на сегодня за $189, завтрак включён. На какое имя оформить бронирование?",
-      { onStart: () => setIsSpeaking(true), onEnd: () => setIsSpeaking(false) },
-    );
+    playArvyVoice(VOICES.hero, {
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+    });
   };
 
   return (

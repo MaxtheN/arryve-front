@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
+  Calendar,
   Check,
   Mail,
   Lock,
@@ -12,6 +14,11 @@ import {
   Zap,
   Headphones,
 } from 'lucide-react';
+
+/* Same Google appointment schedule used by the landing page's "Book a
+   Demo" CTA. Override via VITE_BOOK_DEMO_URL env var if needed. */
+const DEFAULT_BOOK_DEMO_URL = 'https://calendar.app.google/eo9uCycR6vUZLAau8';
+const BOOK_DEMO_URL = import.meta.env.VITE_BOOK_DEMO_URL || DEFAULT_BOOK_DEMO_URL;
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
 /* Sales pitch — product-focused deck designed to be sent directly to hotel
@@ -19,31 +26,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
    (no market/team/competition/ask; adds ROI slider, pilot terms, security
    reassurance, and a direct CTA). */
 
-function speakArvy(
-  text: string,
-  callbacks: { onStart?: () => void; onEnd?: () => void } = {},
-) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    callbacks.onEnd?.();
-    return;
-  }
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 1.0;
-  utter.pitch = 1.02;
-  const voices = synth.getVoices();
-  const voice =
-    voices.find((v) => v.name === 'Samantha') ||
-    voices.find((v) => v.lang === 'en-US' && /female/i.test(v.name)) ||
-    voices.find((v) => v.name.includes('Google UK English Female')) ||
-    voices.find((v) => v.lang.startsWith('en'));
-  if (voice) utter.voice = voice;
-  utter.onstart = () => callbacks.onStart?.();
-  utter.onend = () => callbacks.onEnd?.();
-  utter.onerror = () => callbacks.onEnd?.();
-  synth.speak(utter);
-}
+import { playArvyVoice, stopArvyVoice, VOICES } from './voice';
 
 const MAIN_SLIDES = 10;
 
@@ -424,14 +407,14 @@ function SlideMeetArvy() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const handleHearArvy = () => {
     if (isSpeaking) {
-      window.speechSynthesis?.cancel();
+      stopArvyVoice();
       setIsSpeaking(false);
       return;
     }
-    speakArvy(
-      "Good evening, and thank you for calling. This is Arvy. We have a king available at $189 tonight, breakfast included. Whose name shall I put the reservation under?",
-      { onStart: () => setIsSpeaking(true), onEnd: () => setIsSpeaking(false) },
-    );
+    playArvyVoice(VOICES.hero, {
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+    });
   };
 
   return (
@@ -989,26 +972,51 @@ function SlideCTA() {
           Let's get Arvy on <em className="italic font-light">your line.</em>
         </h2>
         <p className="font-serif text-[22px] md:text-[28px] font-light italic text-ivory-100/85 max-w-[36ch] leading-[1.2] mb-12 text-pretty">
-          Email us to set up a demo. See your own property's calls in a live Arvy simulation.
+          Book a 30-minute call. See your own property's calls in a live Arvy simulation.
         </p>
 
-        <a
-          href="mailto:contact@tryarryve.com"
-          className="group inline-flex items-center gap-5 rounded-3xl bg-ivory-50 text-forest-950 p-6 md:p-7 hover:bg-white transition-colors max-w-2xl mb-10"
-        >
-          <div className="h-14 w-14 rounded-full bg-forest-950 text-ivory-50 grid place-items-center flex-shrink-0">
-            <Mail className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/60 font-medium mb-1.5">
-              Email us
+        <div className="grid md:grid-cols-[1.1fr_1fr] gap-4 max-w-4xl mb-10">
+          {/* Primary: Book a call */}
+          <a
+            href={BOOK_DEMO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="group flex items-center gap-5 rounded-3xl bg-ivory-50 text-forest-950 p-6 md:p-7 hover:bg-white transition-colors"
+          >
+            <div className="h-14 w-14 rounded-full bg-forest-950 text-ivory-50 grid place-items-center flex-shrink-0">
+              <Calendar className="w-6 h-6" />
             </div>
-            <div className="font-serif text-[24px] md:text-[32px] text-forest-950 leading-tight">
-              contact@tryarryve.com
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/60 font-medium mb-1.5">
+                Book a call
+              </div>
+              <div className="font-serif text-[22px] md:text-[28px] text-forest-950 leading-tight">
+                30 min · live demo
+              </div>
+              <div className="text-[13px] text-forest-950/65 mt-2">Pick any time that works</div>
             </div>
-            <div className="text-[13px] text-forest-950/65 mt-2">Usually reply within a few hours</div>
-          </div>
-        </a>
+            <ArrowUpRight className="w-5 h-5 text-forest-950/50 group-hover:text-forest-950 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+          </a>
+
+          {/* Secondary: Email */}
+          <a
+            href="mailto:contact@tryarryve.com"
+            className="group flex items-center gap-5 rounded-3xl bg-ivory-50/[0.06] border border-ivory-100/20 p-6 md:p-7 hover:bg-ivory-50/[0.12] transition-colors backdrop-blur-sm"
+          >
+            <div className="h-14 w-14 rounded-full bg-ivory-50 text-forest-950 grid place-items-center flex-shrink-0">
+              <Mail className="w-6 h-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] uppercase tracking-[0.22em] text-ivory-100/70 font-medium mb-1.5">
+                Or email us
+              </div>
+              <div className="font-serif text-[20px] md:text-[24px] text-ivory-50 leading-tight break-all">
+                contact@tryarryve.com
+              </div>
+              <div className="text-[13px] text-ivory-100/65 mt-2">Reply within a few hours</div>
+            </div>
+          </a>
+        </div>
 
         <div className="flex items-center gap-3 text-[12px] text-ivory-100/55">
           <Heart className="w-3.5 h-3.5 text-ivory-100/60 fill-ivory-100/60" />

@@ -10,33 +10,7 @@ import {
 } from 'lucide-react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
-/* Speech helper — mirrors the landing page's speakArvy so the pitch deck
-   can play the same "Hear Arvy" interaction. */
-function speakArvy(
-  text: string,
-  callbacks: { onStart?: () => void; onEnd?: () => void } = {},
-) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    callbacks.onEnd?.();
-    return;
-  }
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 1.0;
-  utter.pitch = 1.02;
-  const voices = synth.getVoices();
-  const voice =
-    voices.find((v) => v.name === 'Samantha') ||
-    voices.find((v) => v.lang === 'en-US' && /female/i.test(v.name)) ||
-    voices.find((v) => v.name.includes('Google UK English Female')) ||
-    voices.find((v) => v.lang.startsWith('en'));
-  if (voice) utter.voice = voice;
-  utter.onstart = () => callbacks.onStart?.();
-  utter.onend = () => callbacks.onEnd?.();
-  utter.onerror = () => callbacks.onEnd?.();
-  synth.speak(utter);
-}
+import { playArvyVoice, stopArvyVoice, VOICES } from './voice';
 
 /* ─── Design tokens (match landing page) ───────────────────────────────
    forest-950  #03241E  — dark bg / headlines on light
@@ -617,14 +591,14 @@ function Slide06SolutionDemo() {
 
   const handleHearArvy = () => {
     if (isSpeaking) {
-      window.speechSynthesis?.cancel();
+      stopArvyVoice();
       setIsSpeaking(false);
       return;
     }
-    speakArvy(
-      "Good evening, thank you for calling. This is Arvy. We have a king available at $189 tonight, breakfast included. Whose name shall I put the reservation under?",
-      { onStart: () => setIsSpeaking(true), onEnd: () => setIsSpeaking(false) },
-    );
+    playArvyVoice(VOICES.hero, {
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+    });
   };
 
   return (

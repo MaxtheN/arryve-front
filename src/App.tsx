@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useInView, useScroll, useTransform } from 'mot
 import { ArrowRight, ArrowLeft, ChevronDown, Check, RotateCw, Play, Pause, Info, Sparkles, Heart, Menu, X } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import { playArvyVoice, speakArvy, stopArvyVoice, VOICES } from './voice';
 
 /* ─── Shared: speech helper ─── */
 
@@ -16,82 +17,6 @@ const CONTACT_EMAIL = 'contact@tryarryve.com';
 const MAILTO_CONTACT_URL = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Arryve demo')}`;
 const DEFAULT_BOOK_DEMO_URL = 'https://calendar.app.google/eo9uCycR6vUZLAau8';
 const BOOK_DEMO_URL = import.meta.env.VITE_BOOK_DEMO_URL || DEFAULT_BOOK_DEMO_URL;
-
-/* Real AI-generated voice recordings stored in /public/voices/.
-   Playback shares one HTMLAudioElement so calls preempt each other cleanly. */
-let arvyAudio: HTMLAudioElement | null = null;
-
-function playArvyVoice(
-  src: string,
-  callbacks: { onStart?: () => void; onEnd?: () => void } = {},
-) {
-  if (typeof window === 'undefined' || typeof Audio === 'undefined') {
-    callbacks.onEnd?.();
-    return;
-  }
-  // Stop any TTS that might still be running from older paths.
-  window.speechSynthesis?.cancel();
-  // Stop any currently-playing audio so the new one preempts cleanly.
-  if (arvyAudio) {
-    arvyAudio.pause();
-    arvyAudio.currentTime = 0;
-    arvyAudio.src = '';
-    arvyAudio = null;
-  }
-  const audio = new Audio(src);
-  arvyAudio = audio;
-  audio.preload = 'auto';
-  audio.addEventListener('playing', () => callbacks.onStart?.(), { once: true });
-  const done = () => {
-    if (arvyAudio === audio) arvyAudio = null;
-    callbacks.onEnd?.();
-  };
-  audio.addEventListener('ended', done, { once: true });
-  audio.addEventListener('error', done, { once: true });
-  const p = audio.play();
-  if (p && typeof p.catch === 'function') {
-    p.catch(() => done());
-  }
-}
-
-function stopArvyVoice() {
-  if (arvyAudio) {
-    arvyAudio.pause();
-    arvyAudio.currentTime = 0;
-    arvyAudio.src = '';
-    arvyAudio = null;
-  }
-  if (typeof window !== 'undefined') {
-    window.speechSynthesis?.cancel();
-  }
-}
-
-/* Fallback: browser TTS for KB entries that don't have a recorded voice. */
-function speakArvy(
-  text: string,
-  callbacks: { onStart?: () => void; onEnd?: () => void } = {}
-) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) {
-    callbacks.onEnd?.();
-    return;
-  }
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 1.0;
-  utter.pitch = 1.02;
-  const voices = synth.getVoices();
-  const voice =
-    voices.find((v) => v.name === 'Samantha') ||
-    voices.find((v) => v.lang === 'en-US' && /female/i.test(v.name)) ||
-    voices.find((v) => v.name.includes('Google UK English Female')) ||
-    voices.find((v) => v.lang.startsWith('en'));
-  if (voice) utter.voice = voice;
-  utter.onstart = () => callbacks.onStart?.();
-  utter.onend = () => callbacks.onEnd?.();
-  utter.onerror = () => callbacks.onEnd?.();
-  synth.speak(utter);
-}
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -402,7 +327,7 @@ function HeroSection() {
       setIsSpeaking(false);
       return;
     }
-    playArvyVoice('/voices/hero.mp3', {
+    playArvyVoice(VOICES.hero, {
       onStart: () => setIsSpeaking(true),
       onEnd: () => setIsSpeaking(false),
     });
@@ -1141,11 +1066,11 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 /* ─── Try a call (voice demo) ─── */
 
 const KB: Array<{ match: RegExp; a: string; audio?: string }> = [
-  { match: /check.?in|arriv/i, a: "Check-in begins at 3 PM. If you arrive earlier, I can ask the front desk to hold your bags.", audio: '/voices/check-in.mp3' },
+  { match: /check.?in|arriv/i, a: "Check-in begins at 3 PM. If you arrive earlier, I can ask the front desk to hold your bags.", audio: VOICES.checkIn },
   { match: /check.?out/i, a: "Check-out is by 11 AM. If you'd like a late check-out, I can request it with the front desk." },
-  { match: /breakfast/i, a: "Breakfast is served in the lobby from 7 to 10 AM — complimentary with every stay.", audio: '/voices/breakfast.mp3' },
-  { match: /park/i, a: "We offer complimentary self-parking on site for all guests.", audio: '/voices/parking.mp3' },
-  { match: /pet|dog|cat/i, a: "Yes, we're pet-friendly. There's a thirty dollar cleaning fee for the stay.", audio: '/voices/pets.mp3' },
+  { match: /breakfast/i, a: "Breakfast is served in the lobby from 7 to 10 AM — complimentary with every stay.", audio: VOICES.breakfast },
+  { match: /park/i, a: "We offer complimentary self-parking on site for all guests.", audio: VOICES.parking },
+  { match: /pet|dog|cat/i, a: "Yes, we're pet-friendly. There's a thirty dollar cleaning fee for the stay.", audio: VOICES.pets },
   { match: /pool|gym|fitness/i, a: "The pool and fitness center are open daily from 7 AM to 10 PM." },
   { match: /wifi|wi-?fi|internet/i, a: "Complimentary Wi-Fi is available throughout the hotel. The password is on your key card." },
   { match: /(available|book|reserv|room|night)/i, a: "I'd be glad to help with a reservation. What dates are you considering, and how many guests?" },
