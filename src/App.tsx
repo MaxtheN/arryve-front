@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence, useInView, useScroll, useTransform } from 'motion/react';
-import { ArrowRight, ArrowLeft, ChevronDown, Check, RotateCw, Play, Pause, Info, Sparkles, Heart } from 'lucide-react';
+import { ArrowRight, ArrowLeft, ChevronDown, Check, RotateCw, Play, Pause, Info, Sparkles, Heart, Menu, X } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
@@ -17,6 +17,56 @@ const MAILTO_CONTACT_URL = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent
 const DEFAULT_BOOK_DEMO_URL = 'https://calendar.app.google/eo9uCycR6vUZLAau8';
 const BOOK_DEMO_URL = import.meta.env.VITE_BOOK_DEMO_URL || DEFAULT_BOOK_DEMO_URL;
 
+/* Real AI-generated voice recordings stored in /public/voices/.
+   Playback shares one HTMLAudioElement so calls preempt each other cleanly. */
+let arvyAudio: HTMLAudioElement | null = null;
+
+function playArvyVoice(
+  src: string,
+  callbacks: { onStart?: () => void; onEnd?: () => void } = {},
+) {
+  if (typeof window === 'undefined' || typeof Audio === 'undefined') {
+    callbacks.onEnd?.();
+    return;
+  }
+  // Stop any TTS that might still be running from older paths.
+  window.speechSynthesis?.cancel();
+  // Stop any currently-playing audio so the new one preempts cleanly.
+  if (arvyAudio) {
+    arvyAudio.pause();
+    arvyAudio.currentTime = 0;
+    arvyAudio.src = '';
+    arvyAudio = null;
+  }
+  const audio = new Audio(src);
+  arvyAudio = audio;
+  audio.preload = 'auto';
+  audio.addEventListener('playing', () => callbacks.onStart?.(), { once: true });
+  const done = () => {
+    if (arvyAudio === audio) arvyAudio = null;
+    callbacks.onEnd?.();
+  };
+  audio.addEventListener('ended', done, { once: true });
+  audio.addEventListener('error', done, { once: true });
+  const p = audio.play();
+  if (p && typeof p.catch === 'function') {
+    p.catch(() => done());
+  }
+}
+
+function stopArvyVoice() {
+  if (arvyAudio) {
+    arvyAudio.pause();
+    arvyAudio.currentTime = 0;
+    arvyAudio.src = '';
+    arvyAudio = null;
+  }
+  if (typeof window !== 'undefined') {
+    window.speechSynthesis?.cancel();
+  }
+}
+
+/* Fallback: browser TTS for KB entries that don't have a recorded voice. */
 function speakArvy(
   text: string,
   callbacks: { onStart?: () => void; onEnd?: () => void } = {}
@@ -176,6 +226,7 @@ export default function App() {
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const scrolledRef = useRef(false);
 
   useEffect(() => {
@@ -203,51 +254,138 @@ function Navbar() {
     };
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [menuOpen]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
   const linkCls = scrolled
     ? "hover:text-forest-950 transition-colors"
     : "hover:text-white transition-colors";
 
+  const navLinks: Array<{ href: string; label: string }> = [
+    { href: '#problem', label: 'Problem' },
+    { href: '#how-answers', label: 'How it works' },
+    { href: '#integrations', label: 'Integrations' },
+    { href: '#pricing', label: 'Pricing' },
+    { href: '#faq', label: 'FAQ' },
+  ];
+
   return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-ivory-50/90 backdrop-blur-xl border-b border-ivory-200"
-          : "bg-transparent border-b border-transparent"
-      }`}
-    >
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 h-[72px] flex items-center justify-between">
-        <img
-          src="/arryve-logo.svg"
-          alt="Arryve"
-          className={`h-7 transition-[filter] duration-300 ${
-            scrolled ? "" : "brightness-0 invert"
-          }`}
-        />
-        <div
-          className={`hidden md:flex items-center gap-8 text-sm font-medium transition-colors ${
-            scrolled ? "text-forest-950/75" : "text-white/85"
-          }`}
-        >
-          <a href="#problem" className={linkCls}>Problem</a>
-          <a href="#how-answers" className={linkCls}>How it works</a>
-          <a href="#integrations" className={linkCls}>Integrations</a>
-          <a href="#pricing" className={linkCls}>Pricing</a>
-          <a href="#faq" className={linkCls}>FAQ</a>
+    <>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? "bg-ivory-50/90 backdrop-blur-xl border-b border-ivory-200"
+            : "bg-transparent border-b border-transparent"
+        }`}
+      >
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 h-[72px] flex items-center justify-between">
+          <img
+            src="/arryve-logo.svg"
+            alt="Arryve"
+            className={`h-7 transition-[filter] duration-300 ${
+              scrolled ? "" : "brightness-0 invert"
+            }`}
+          />
+          <div
+            className={`hidden md:flex items-center gap-8 text-sm font-medium transition-colors ${
+              scrolled ? "text-forest-950/75" : "text-white/85"
+            }`}
+          >
+            {navLinks.map((l) => (
+              <a key={l.href} href={l.href} className={linkCls}>{l.label}</a>
+            ))}
+          </div>
+          <a
+            href={BOOK_DEMO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={`hidden md:inline-flex px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
+              scrolled
+                ? "bg-forest-950 text-ivory-50 hover:bg-forest-900"
+                : "bg-ivory-50 text-forest-950 hover:bg-white"
+            }`}
+          >
+            Book a Demo
+          </a>
+
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            className={`md:hidden inline-flex items-center justify-center h-11 w-11 rounded-full transition-colors ${
+              scrolled
+                ? "text-forest-950 hover:bg-forest-950/5"
+                : "text-ivory-50 hover:bg-ivory-50/10"
+            }`}
+          >
+            <Menu className="w-6 h-6" />
+          </button>
         </div>
-        <a
-          href={BOOK_DEMO_URL}
-          target="_blank"
-          rel="noreferrer"
-          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
-            scrolled
-              ? "bg-forest-950 text-ivory-50 hover:bg-forest-900"
-              : "bg-ivory-50 text-forest-950 hover:bg-white"
-          }`}
-        >
-          Book a Demo
-        </a>
+      </nav>
+
+      {/* Mobile menu overlay */}
+      <div
+        className={`md:hidden fixed inset-0 z-[60] bg-forest-950 text-ivory-50 flex flex-col transition-opacity duration-200 ${
+          menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        aria-hidden={!menuOpen}
+      >
+        <div className="flex items-center justify-between px-5 h-[72px] border-b border-ivory-50/15">
+          <img src="/arryve-logo.svg" alt="Arryve" className="h-7 brightness-0 invert" />
+          <button
+            type="button"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Close menu"
+            className="inline-flex items-center justify-center h-11 w-11 rounded-full text-ivory-50 hover:bg-ivory-50/10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        <nav className="flex-1 flex flex-col justify-center px-8 gap-2 overflow-y-auto">
+          {navLinks.map((l, i) => (
+            <a
+              key={l.href}
+              href={l.href}
+              onClick={() => setMenuOpen(false)}
+              className="font-serif text-[32px] leading-[1.2] text-ivory-50 py-3 border-b border-ivory-50/10"
+            >
+              <span className="text-[11px] font-mono tracking-widest text-ivory-100/50 mr-4 align-middle">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              {l.label}
+            </a>
+          ))}
+        </nav>
+        <div className="p-5 border-t border-ivory-50/15">
+          <a
+            href={BOOK_DEMO_URL}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center justify-center gap-2 bg-ivory-50 text-forest-950 py-4 rounded-full text-base font-medium hover:bg-white transition-colors"
+          >
+            Book a Demo
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
       </div>
-    </nav>
+    </>
   );
 }
 
@@ -260,14 +398,14 @@ function HeroSection() {
 
   const handleHearArvy = () => {
     if (isSpeaking) {
-      window.speechSynthesis?.cancel();
+      stopArvyVoice();
       setIsSpeaking(false);
       return;
     }
-    speakArvy(
-      "Good evening, thank you for calling. This is Arvy — how may I help you?",
-      { onStart: () => setIsSpeaking(true), onEnd: () => setIsSpeaking(false) }
-    );
+    playArvyVoice('/voices/hero.mp3', {
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+    });
   };
 
   return (
@@ -283,11 +421,8 @@ function HeroSection() {
           fetchPriority="high"
           loading="eager"
           decoding="async"
-          className="absolute -top-[5%] left-0 w-full h-[112%] object-cover"
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
           crossOrigin="anonymous"
+          className="absolute -top-[5%] left-0 w-full h-[112%] object-cover"
           style={{ y: imgY }}
         />
       </div>
@@ -413,18 +548,47 @@ function ProblemSection() {
     <section
       ref={sectionRef}
       id="problem"
-      className="relative bg-ivory-50"
-      style={{ height: `${PROBLEM_STATS.length * 100}svh` }}
+      className="relative bg-ivory-50 lg:h-[300svh]"
     >
-      <div className="sticky top-0 h-svh flex items-center px-5 sm:px-8 md:px-12 overflow-y-auto lg:overflow-visible">
-        <div className="max-w-6xl mx-auto w-full grid lg:grid-cols-[1fr_1.05fr] gap-14 lg:gap-20 items-center">
+      {/* Mobile / tablet: all 3 stats stacked. No sticky, no scroll-drive —
+         everything visible in a natural top-to-bottom read. */}
+      <div className="lg:hidden px-5 sm:px-8 py-20">
+        <div className="max-w-6xl mx-auto">
+          <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-forest-950/60 mb-10">
+            <span className="h-px w-8 bg-forest-950/40" />
+            The problem
+          </div>
+          <div className="space-y-14">
+            {PROBLEM_STATS.map((s, i) => (
+              <div key={i} className="border-t-2 border-forest-950/20 pt-8">
+                <div className="font-serif text-[72px] sm:text-[96px] md:text-[120px] font-normal tracking-[-0.04em] leading-[0.86] text-forest-950 mb-6">
+                  {s.big}
+                </div>
+                <p className="font-serif text-[22px] md:text-[28px] text-forest-950 leading-[1.22] max-w-[28ch] text-pretty mb-4">
+                  {s.headline}
+                </p>
+                <p className="text-base text-ivory-700 leading-[1.6] max-w-xl text-pretty">
+                  {s.body}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-16">
+            <FrontDeskRealityCard />
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: sticky + scroll-driven animation */}
+      <div className="hidden lg:flex sticky top-0 h-svh items-center px-12">
+        <div className="max-w-6xl mx-auto w-full grid grid-cols-[1fr_1.05fr] gap-20 items-center">
           <div>
             <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-forest-950/60 mb-8">
               <span className="h-px w-8 bg-forest-950/40" />
               The problem
             </div>
 
-            <div className="relative min-h-[200px] sm:min-h-[240px] md:min-h-[280px] lg:min-h-[320px] mb-6">
+            <div className="relative min-h-[320px] mb-6">
               <AnimatePresence mode="wait">
                 <motion.h2
                   key={`big-${active}`}
@@ -432,14 +596,14 @@ function ProblemSection() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                  className="font-serif text-[84px] sm:text-[112px] md:text-[140px] lg:text-[168px] font-normal tracking-[-0.04em] leading-[0.86] text-forest-950"
+                  className="font-serif text-[168px] font-normal tracking-[-0.04em] leading-[0.86] text-forest-950"
                 >
                   {current.big}
                 </motion.h2>
               </AnimatePresence>
             </div>
 
-            <div className="relative min-h-[120px] md:min-h-[100px] mb-2">
+            <div className="relative min-h-[100px] mb-2">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`copy-${active}`}
@@ -448,7 +612,7 @@ function ProblemSection() {
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <p className="font-serif text-[22px] md:text-[28px] text-forest-950 leading-[1.22] max-w-[28ch] text-pretty mb-5">
+                  <p className="font-serif text-[28px] text-forest-950 leading-[1.22] max-w-[28ch] text-pretty mb-5">
                     {current.headline}
                   </p>
                   <p className="text-base text-ivory-700 leading-[1.6] max-w-md text-pretty">
@@ -648,20 +812,52 @@ function HowAnswersSection() {
     <section
       ref={sectionRef}
       id="how-answers"
-      className="relative bg-white"
-      style={{ height: `${scenarios.length * 100}svh` }}
+      className="relative bg-white lg:h-[300svh]"
     >
-      <div className="sticky top-0 h-svh flex items-center px-5 sm:px-8 md:px-12 py-12 overflow-y-auto lg:overflow-visible">
-        <div className="max-w-6xl mx-auto w-full">
-          <div className="mb-10 md:mb-12">
+      {/* Mobile / tablet: all 3 scenarios stacked */}
+      <div className="lg:hidden px-5 sm:px-8 py-20">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-12">
             <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-forest-950/60 mb-6">
               <span className="h-px w-8 bg-forest-950/40" />
               How Arvy answers
             </div>
-            <h2 className="font-serif text-[36px] md:text-[52px] lg:text-[60px] font-normal tracking-[-0.02em] leading-[1.04] text-forest-950 max-w-[16ch] mb-4 text-balance">
+            <h2 className="font-serif text-[36px] sm:text-[44px] md:text-[52px] font-normal tracking-[-0.02em] leading-[1.04] text-forest-950 max-w-[16ch] mb-4 text-balance">
               Three kinds of calls. <em className="italic font-light">One steady voice.</em>
             </h2>
             <p className="text-base md:text-lg text-ivory-700 leading-[1.6] max-w-xl text-pretty">
+              Every property handles the same three call shapes. Arvy handles all three — in your words, with your rules, around the clock.
+            </p>
+          </div>
+
+          <div className="space-y-10">
+            {scenarios.map((s, i) => (
+              <div key={i} className="border-t border-forest-950/15 pt-8">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/55 font-medium mb-3">
+                  {String(i + 1).padStart(2, '0')} · {s.label}
+                </div>
+                <h3 className="font-serif text-[26px] sm:text-[30px] font-normal tracking-[-0.015em] leading-[1.14] text-forest-950 text-pretty mb-6">
+                  {s.title}
+                </h3>
+                <ScenarioCard scenario={s} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: sticky + scroll-driven */}
+      <div className="hidden lg:flex sticky top-0 h-svh items-center px-12 py-12">
+        <div className="max-w-6xl mx-auto w-full">
+          <div className="mb-12">
+            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-forest-950/60 mb-6">
+              <span className="h-px w-8 bg-forest-950/40" />
+              How Arvy answers
+            </div>
+            <h2 className="font-serif text-[60px] font-normal tracking-[-0.02em] leading-[1.04] text-forest-950 max-w-[16ch] mb-4 text-balance">
+              Three kinds of calls. <em className="italic font-light">One steady voice.</em>
+            </h2>
+            <p className="text-lg text-ivory-700 leading-[1.6] max-w-xl text-pretty">
               Every property handles the same three call shapes. Arvy handles all three — in your words, with your rules, around the clock.
             </p>
           </div>
@@ -696,8 +892,8 @@ function HowAnswersSection() {
             ))}
           </div>
 
-          <div className="grid md:grid-cols-[1fr_1.25fr] gap-8 md:gap-16 items-start">
-            <div className="relative min-h-[140px] md:min-h-[120px]">
+          <div className="grid grid-cols-[1fr_1.25fr] gap-16 items-start">
+            <div className="relative min-h-[120px]">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`label-${active}`}
@@ -706,7 +902,7 @@ function HowAnswersSection() {
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <h3 className="font-serif text-[28px] md:text-[36px] font-normal tracking-[-0.015em] leading-[1.12] text-forest-950 text-pretty">
+                  <h3 className="font-serif text-[36px] font-normal tracking-[-0.015em] leading-[1.12] text-forest-950 text-pretty">
                     {scenario.title}
                   </h3>
                 </motion.div>
@@ -944,12 +1140,12 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 /* ─── Try a call (voice demo) ─── */
 
-const KB: Array<{ match: RegExp; a: string }> = [
-  { match: /check.?in|arriv/i, a: "Check-in begins at 3 PM. If you arrive earlier, I can ask the front desk to hold your bags." },
+const KB: Array<{ match: RegExp; a: string; audio?: string }> = [
+  { match: /check.?in|arriv/i, a: "Check-in begins at 3 PM. If you arrive earlier, I can ask the front desk to hold your bags.", audio: '/voices/check-in.mp3' },
   { match: /check.?out/i, a: "Check-out is by 11 AM. If you'd like a late check-out, I can request it with the front desk." },
-  { match: /breakfast/i, a: "Breakfast is served in the lobby from 7 to 10 AM — complimentary with every stay." },
-  { match: /park/i, a: "We offer complimentary self-parking on site for all guests." },
-  { match: /pet|dog|cat/i, a: "Yes, we're pet-friendly. There's a thirty dollar cleaning fee for the stay." },
+  { match: /breakfast/i, a: "Breakfast is served in the lobby from 7 to 10 AM — complimentary with every stay.", audio: '/voices/breakfast.mp3' },
+  { match: /park/i, a: "We offer complimentary self-parking on site for all guests.", audio: '/voices/parking.mp3' },
+  { match: /pet|dog|cat/i, a: "Yes, we're pet-friendly. There's a thirty dollar cleaning fee for the stay.", audio: '/voices/pets.mp3' },
   { match: /pool|gym|fitness/i, a: "The pool and fitness center are open daily from 7 AM to 10 PM." },
   { match: /wifi|wi-?fi|internet/i, a: "Complimentary Wi-Fi is available throughout the hotel. The password is on your key card." },
   { match: /(available|book|reserv|room|night)/i, a: "I'd be glad to help with a reservation. What dates are you considering, and how many guests?" },
@@ -982,10 +1178,17 @@ function TryACallSection() {
       { who: "Arvy", text: answer, id: arvyId },
     ]);
     setQuery("");
-    speakArvy(answer, {
+    const callbacks = {
       onStart: () => setIsSpeaking(true),
       onEnd: () => setIsSpeaking(false),
-    });
+    };
+    // Prefer the recorded AI voice when the KB entry has one; fall back
+    // to browser TTS for questions without a recording yet.
+    if (match?.audio) {
+      playArvyVoice(match.audio, callbacks);
+    } else {
+      speakArvy(answer, callbacks);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1151,8 +1354,9 @@ function IntegrationsSection() {
             <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/55 font-medium">
               Connected systems
             </div>
-            <div className="hidden md:block text-[11px] text-forest-950/45">
-              Hover a system to preview its sync
+            <div className="text-[11px] text-forest-950/45">
+              <span className="md:hidden">Tap a system to preview its sync</span>
+              <span className="hidden md:inline">Hover a system to preview its sync</span>
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px bg-ivory-200 border border-ivory-200 rounded-2xl overflow-hidden">

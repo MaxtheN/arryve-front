@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -99,8 +99,33 @@ export default function PitchDeckSales() {
     SlideCTA,
   ];
 
+  // Touch-swipe navigation for mobile.
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const SWIPE_THRESHOLD = 60;
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) next();
+      else prev();
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   return (
-    <div className="relative h-screen w-screen font-sans antialiased text-forest-950 bg-ivory-50 overflow-hidden">
+    <div
+      className="relative h-full w-full font-sans antialiased text-forest-950 bg-ivory-50 overflow-hidden"
+      style={{ touchAction: 'pan-y' }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       {slides.map((SlideComponent, i) => {
         const active = i === current;
         const shouldRender = isPrintMode || active;
@@ -113,6 +138,7 @@ export default function PitchDeckSales() {
               opacity: active ? 1 : 0,
               pointerEvents: active ? 'auto' : 'none',
               transition: isPrintMode ? undefined : 'opacity 280ms ease',
+              WebkitOverflowScrolling: 'touch',
             }}
             aria-hidden={!active}
           >

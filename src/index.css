@@ -81,6 +81,20 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   font-synthesis-weight: none;
+  /* Stop iOS Safari from bouncing when users hit the top/bottom of a page */
+  overscroll-behavior-y: none;
+}
+
+/* Momentum scroll inside any overflow-y-auto container (iOS Safari) */
+.deck-slide,
+[data-momentum] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent tap-highlight flashes on interactive elements */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .film-grain::after {

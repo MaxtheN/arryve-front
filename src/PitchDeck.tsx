@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -110,8 +110,34 @@ export default function PitchDeck() {
     // Slide11Traction removed for now — pre-traction stage, see comment above.
   ];
 
+  // Touch-swipe navigation for mobile. Only horizontal swipes trigger nav,
+  // so vertical scroll inside a slide still works natively.
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const SWIPE_THRESHOLD = 60;
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) next();
+      else prev();
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   return (
-    <div className="relative h-screen w-screen font-sans antialiased text-forest-950 bg-ivory-50 overflow-hidden">
+    <div
+      className="relative h-full w-full font-sans antialiased text-forest-950 bg-ivory-50 overflow-hidden"
+      style={{ touchAction: 'pan-y' }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       {slides.map((SlideComponent, i) => {
         const active = i === current;
         const shouldRender = isPrintMode || active;
@@ -125,6 +151,7 @@ export default function PitchDeck() {
             opacity: active ? 1 : 0,
             pointerEvents: active ? 'auto' : 'none',
             transition: isPrintMode ? undefined : 'opacity 280ms ease',
+            WebkitOverflowScrolling: 'touch',
           }}
           aria-hidden={!active}
         >
@@ -1024,7 +1051,7 @@ function Slide10Competition() {
         </h2>
 
         <div className="rounded-3xl overflow-hidden border border-forest-950/10 bg-white shadow-[0_30px_80px_-40px_rgba(3,36,30,0.15)]">
-          <div className="grid grid-cols-[1.3fr_1.3fr_2fr] bg-ivory-100 border-b border-forest-950/10 px-6 py-3 text-[10px] uppercase tracking-[0.22em] text-forest-950/65 font-semibold">
+          <div className="hidden md:grid grid-cols-[1.3fr_1.3fr_2fr] bg-ivory-100 border-b border-forest-950/10 px-6 py-3 text-[10px] uppercase tracking-[0.22em] text-forest-950/65 font-semibold">
             <div>Player</div>
             <div>Focus</div>
             <div>Why we win / position</div>
@@ -1032,7 +1059,7 @@ function Slide10Competition() {
           {rows.map((r, i) => (
             <div
               key={i}
-              className={`grid grid-cols-[1.3fr_1.3fr_2fr] px-6 py-5 border-b border-ivory-200 last:border-0 gap-4 items-center ${
+              className={`flex flex-col gap-3 md:grid md:grid-cols-[1.3fr_1.3fr_2fr] px-5 md:px-6 py-5 border-b border-ivory-200 last:border-0 md:gap-4 md:items-center ${
                 r.tone === 'dark' ? 'bg-forest-950 text-ivory-50' : ''
               }`}
             >
@@ -1046,9 +1073,11 @@ function Slide10Competition() {
                 )}
               </div>
               <div className={`text-[13px] ${r.tone === 'dark' ? 'text-ivory-50/90' : 'text-forest-950/75'}`}>
+                <span className={`md:hidden text-[10px] uppercase tracking-[0.2em] font-semibold block mb-1 ${r.tone === 'dark' ? 'text-ivory-50/60' : 'text-forest-950/50'}`}>Focus</span>
                 {r.focus}
               </div>
               <div className={`text-[13px] leading-[1.55] ${r.tone === 'dark' ? 'text-ivory-50' : 'text-forest-950/85'}`}>
+                <span className={`md:hidden text-[10px] uppercase tracking-[0.2em] font-semibold block mb-1 ${r.tone === 'dark' ? 'text-ivory-50/60' : 'text-forest-950/50'}`}>Why we win</span>
                 {r.why}
               </div>
             </div>
