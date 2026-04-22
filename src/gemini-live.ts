@@ -43,7 +43,7 @@ export interface GeminiLiveCallbacks {
   // Fired when the session ends naturally (hit turn limit, model said
   // goodbye, or user clicked stop). Separate from onError so the UI can
   // distinguish "demo ended" from "something broke".
-  onEnded?: (reason: 'turn-limit' | 'user-stopped' | 'server-closed') => void;
+  onEnded?: (reason: 'model-ended' | 'user-stopped' | 'server-closed') => void;
 }
 
 export interface GeminiLiveConfig {

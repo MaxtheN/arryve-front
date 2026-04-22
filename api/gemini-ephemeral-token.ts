@@ -15,7 +15,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Modality, Type } from '@google/genai';
 
-import SYSTEM_INSTRUCTION from './_arvy-prompt';
+import SYSTEM_INSTRUCTION from './_arvy-prompt.js';
 
 const MODEL = 'gemini-3.1-flash-live-preview';
 const TOKEN_USES = 1;
