@@ -65,6 +65,12 @@ export class GeminiLiveSession {
   private micSource: MediaStreamAudioSourceNode | null = null;
   private playbackCtx: AudioContext | null = null;
   private playbackQueueEndsAt: number = 0;
+  // Keep a handle to every scheduled output source so we can .stop() them
+  // when the server says the user interrupted or when the session closes.
+  // Without this, previously-scheduled chunks keep playing after
+  // `playbackQueueEndsAt` is rewound, which makes the next reply audibly
+  // collide with the tail of the previous one.
+  private scheduledSources: Set<AudioBufferSourceNode> = new Set();
   private callbacks: GeminiLiveCallbacks;
   private config: GeminiLiveConfig;
   private status: GeminiLiveStatus = 'idle';
@@ -380,11 +386,29 @@ export class GeminiLiveSession {
     source.connect(this.playbackCtx.destination);
     const startAt = Math.max(this.playbackCtx.currentTime, this.playbackQueueEndsAt);
     source.start(startAt);
+    this.scheduledSources.add(source);
+    source.addEventListener('ended', () => {
+      this.scheduledSources.delete(source);
+    });
     this.playbackQueueEndsAt = startAt + buffer.duration;
   }
 
   private clearPlayback() {
-    // Reset the schedule horizon so next chunk plays immediately.
+    // Hard-stop every currently-scheduled source so the guest hears silence
+    // the instant Gemini says they interrupted. Without this, sources that
+    // were already .start()'d on the audio clock continue playing even after
+    // we rewind playbackQueueEndsAt — which is the race that produces
+    // overlapping Arvy voices.
+    for (const source of this.scheduledSources) {
+      try {
+        source.onended = null;
+        source.stop();
+        source.disconnect();
+      } catch {
+        /* already stopped */
+      }
+    }
+    this.scheduledSources.clear();
     if (this.playbackCtx) {
       this.playbackQueueEndsAt = this.playbackCtx.currentTime;
     }
