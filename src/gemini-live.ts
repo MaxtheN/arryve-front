@@ -22,6 +22,8 @@ import {
   type Session,
 } from '@google/genai';
 
+import { getSessionId, logDemoEvent } from './demo-log';
+
 const INPUT_RATE = 16000;
 const OUTPUT_RATE = 24000;
 const MIC_FRAME_SIZE = 2048; // worklet posts at this size — tuned for latency.
@@ -125,10 +127,10 @@ export class GeminiLiveSession {
         callbacks: {
           onopen: () => {
             opened = true;
+            const openMs = Math.round(performance.now() - startedAt);
             // eslint-disable-next-line no-console
-            console.log(
-              `[gemini-live] ws open ${Math.round(performance.now() - startedAt)} ms after start()`
-            );
+            console.log(`[gemini-live] ws open ${openMs} ms after start()`);
+            logDemoEvent('ws_open', { ms: openMs });
             this.setStatus('listening');
             this.startMicPump();
           },
@@ -144,6 +146,11 @@ export class GeminiLiveSession {
           onclose: (e: CloseEvent) => {
             // eslint-disable-next-line no-console
             console.log('[gemini-live] ws close', {
+              code: e.code,
+              reason: e.reason,
+              wasOpened: opened,
+            });
+            logDemoEvent('ws_close', {
               code: e.code,
               reason: e.reason,
               wasOpened: opened,
@@ -235,16 +242,27 @@ export class GeminiLiveSession {
       if (name === 'end_call') {
         responses.push({ id, name, response: { output: { ok: true } } });
         shouldEnd = true;
+        logDemoEvent('tool_call', { name: 'end_call', args });
         continue;
       }
+      const toolStart = performance.now();
       try {
         const resp = await fetch('/api/tool-invoke', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ name, args: args ?? {} }),
+          body: JSON.stringify({ name, args: args ?? {}, sessionId: getSessionId() }),
         });
         const body = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
+        const toolMs = Math.round(performance.now() - toolStart);
         if (!resp.ok) {
+          logDemoEvent('tool_call', {
+            name,
+            args,
+            ms: toolMs,
+            ok: false,
+            status: resp.status,
+            error: body.error,
+          });
           responses.push({
             id,
             name,
@@ -252,12 +270,26 @@ export class GeminiLiveSession {
           });
           continue;
         }
+        logDemoEvent('tool_call', {
+          name,
+          args,
+          ms: toolMs,
+          ok: true,
+        });
         responses.push({ id, name, response: { output: body } });
       } catch (err) {
+        const msg = (err as Error).message || 'tool dispatch failed';
+        logDemoEvent('tool_call', {
+          name,
+          args,
+          ms: Math.round(performance.now() - toolStart),
+          ok: false,
+          error: msg,
+        });
         responses.push({
           id,
           name,
-          response: { error: (err as Error).message || 'tool dispatch failed' },
+          response: { error: msg },
         });
       }
     }

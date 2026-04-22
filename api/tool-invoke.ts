@@ -34,22 +34,32 @@ function requireEnv(name: string): string {
   return v;
 }
 
+function logEvent(fields: Record<string, unknown>) {
+  // eslint-disable-next-line no-console
+  console.log(JSON.stringify({ kind: 'tool_invoke', ts: Date.now(), ...fields }));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' });
     return;
   }
+  const startedAt = Date.now();
+  const { name, args, sessionId } = (req.body ?? {}) as {
+    name?: string;
+    args?: Record<string, unknown>;
+    sessionId?: string;
+  };
+  const sid = sessionId ?? 'no-session';
   try {
-    const { name, args } = (req.body ?? {}) as {
-      name?: string;
-      args?: Record<string, unknown>;
-    };
     if (!name || typeof name !== 'string') {
+      logEvent({ sessionId: sid, ok: false, error: 'name required' });
       res.status(400).json({ error: 'name required' });
       return;
     }
     const flow = TOOL_TO_FLOW[name];
     if (!flow || !ALLOWED_FLOWS.has(flow)) {
+      logEvent({ sessionId: sid, ok: false, name, error: `tool not allowed` });
       res.status(403).json({ error: `tool ${name} not allowed from demo` });
       return;
     }
@@ -88,12 +98,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       parsed = { raw: text };
     }
     if (!upstream.ok) {
+      logEvent({
+        sessionId: sid,
+        ok: false,
+        name,
+        flow,
+        ms: Date.now() - startedAt,
+        upstreamStatus: upstream.status,
+      });
       res.status(502).json({ error: `automation ${upstream.status}`, body: parsed });
       return;
     }
+    const flowResult = parsed as { ok?: boolean; result?: unknown; error?: string };
+    logEvent({
+      sessionId: sid,
+      ok: flowResult.ok ?? true,
+      name,
+      flow,
+      args,
+      ms: Date.now() - startedAt,
+      flowError: flowResult.error,
+    });
     res.status(200).json(parsed);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    logEvent({
+      sessionId: sid,
+      ok: false,
+      name,
+      ms: Date.now() - startedAt,
+      error: message,
+    });
     res.status(500).json({ error: message });
   }
 }

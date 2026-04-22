@@ -18,6 +18,7 @@ import {
   GeminiLiveSession,
   type GeminiLiveStatus,
 } from './gemini-live';
+import { logDemoEvent, newSessionId } from './demo-log';
 
 export type TranscriptEntry = { id: number; role: 'user' | 'model'; text: string };
 
@@ -90,24 +91,36 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
     setTurnIndex(0);
     setEndedReason(null);
     setStatus('connecting');
+    const sid = newSessionId();
+    logDemoEvent('session_start', {
+      ua: navigator.userAgent,
+      lang: navigator.language,
+    });
     const t0 = performance.now();
     let minted: EphemeralTokenResponse;
     try {
       const resp = await fetch('/api/gemini-ephemeral-token', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ sessionId: sid }),
       });
       if (!resp.ok) {
         const body = await resp.json().catch(() => ({}));
         throw new Error(body.error || `token mint failed (${resp.status})`);
       }
       minted = (await resp.json()) as EphemeralTokenResponse;
+      const mintMs = Math.round(performance.now() - t0);
       // eslint-disable-next-line no-console
-      console.log(`[arryve-demo] token mint ${Math.round(performance.now() - t0)} ms`);
+      console.log(`[arryve-demo] token mint ${mintMs} ms`);
+      logDemoEvent('token_minted', {
+        ms: mintMs,
+        toolsEnabled: minted.toolsEnabled ?? false,
+      });
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       setStatus('error');
-      setError(err instanceof Error ? err.message : String(err));
+      setError(msg);
+      logDemoEvent('token_error', { error: msg, ms: Math.round(performance.now() - t0) });
       return;
     }
     setToolsEnabled(Boolean(minted.toolsEnabled));
@@ -115,13 +128,25 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
       { token: minted.token, model: minted.model },
       {
         onStatus: setStatus,
-        onFirstAudio: (ms) => setFirstAudioMs(Math.round(ms)),
-        onTranscript: appendTranscript,
+        onFirstAudio: (ms) => {
+          const rounded = Math.round(ms);
+          setFirstAudioMs(rounded);
+          logDemoEvent('first_audio', { ms: rounded });
+        },
+        onTranscript: (role, text) => {
+          appendTranscript(role, text);
+          logDemoEvent('transcript', { role, text });
+        },
         onTurnStart: () => setFirstAudioMs(null),
         onTurnEnd: (idx) => setTurnIndex(idx),
-        onError: (err) => setError(err.message || String(err)),
+        onError: (err) => {
+          const msg = err.message || String(err);
+          setError(msg);
+          logDemoEvent('error', { error: msg });
+        },
         onEnded: (reason) => {
           setEndedReason(reason);
+          logDemoEvent('ended', { reason });
           sessionRef.current = null;
         },
       }

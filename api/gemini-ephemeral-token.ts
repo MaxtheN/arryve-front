@@ -98,11 +98,19 @@ function requireApiKey(): string {
   return key;
 }
 
+function logEvent(fields: Record<string, unknown>) {
+  // eslint-disable-next-line no-console
+  console.log(JSON.stringify({ kind: 'token_mint', ts: Date.now(), ...fields }));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' });
     return;
   }
+  const sessionId =
+    (req.body as { sessionId?: string })?.sessionId ?? 'no-session';
+  const startedAt = Date.now();
   try {
     const ai = new GoogleGenAI({
       apiKey: requireApiKey(),
@@ -145,6 +153,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
     if (!token.name) throw new Error('token.name missing from authTokens.create response');
+    logEvent({
+      sessionId,
+      ok: true,
+      ms: Date.now() - startedAt,
+      toolsEnabled,
+      model: MODEL,
+    });
     res.status(200).json({
       token: token.name,
       model: MODEL,
@@ -153,6 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    logEvent({ sessionId, ok: false, ms: Date.now() - startedAt, error: message });
     res.status(500).json({ error: message });
   }
 }
