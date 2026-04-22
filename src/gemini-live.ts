@@ -90,6 +90,7 @@ export class GeminiLiveSession {
 
   async start(): Promise<void> {
     this.setStatus('connecting');
+    const startedAt = performance.now();
     try {
       // Playback context is 24kHz so the model's native output plays without
       // resampling; mic capture uses a second context at the device default so
@@ -125,7 +126,9 @@ export class GeminiLiveSession {
           onopen: () => {
             opened = true;
             // eslint-disable-next-line no-console
-            console.log('[gemini-live] ws open');
+            console.log(
+              `[gemini-live] ws open ${Math.round(performance.now() - startedAt)} ms after start()`
+            );
             this.setStatus('listening');
             this.startMicPump();
           },

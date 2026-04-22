@@ -27,7 +27,6 @@ export function GeminiLiveDemo() {
     status,
     transcripts,
     firstAudioMs,
-    turnIndex,
     error,
     endedReason,
     demoLocked,
@@ -79,12 +78,6 @@ export function GeminiLiveDemo() {
       {error && (
         <div className="px-6 md:px-7 py-3 text-[13px] text-rose-700 bg-rose-50 border-t border-rose-100">
           {error}
-        </div>
-      )}
-
-      {demoLocked && !isActive && (
-        <div className="px-6 md:px-7 py-3 text-[13px] text-forest-950/70 bg-ivory-100 border-t border-ivory-200">
-          You've already tried Arvy on this browser. Want to see her on your own phones, rooms, and folios? <a href="#pricing" className="underline underline-offset-2 hover:text-forest-950">Book a pilot →</a>
         </div>
       )}
 

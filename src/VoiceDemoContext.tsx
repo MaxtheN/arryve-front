@@ -18,11 +18,6 @@ import {
   GeminiLiveSession,
   type GeminiLiveStatus,
 } from './gemini-live';
-import {
-  computeFingerprint,
-  hasConsumedDemo,
-  markDemoConsumed,
-} from './demo-fingerprint';
 
 export type TranscriptEntry = { id: number; role: 'user' | 'model'; text: string };
 
@@ -55,25 +50,16 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
   const [turnIndex, setTurnIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [endedReason, setEndedReason] = useState<string | null>(null);
-  const [demoLocked, setDemoLocked] = useState(false);
   const [toolsEnabled, setToolsEnabled] = useState(false);
-  const [fingerprint, setFingerprint] = useState<string | null>(null);
+  // Single-try lockout is disabled during the testing window. Re-enable
+  // by restoring the fingerprint-based check in this provider (see git
+  // history) when we're ready to cap repeat demos again.
+  const demoLocked = false;
   const sessionRef = useRef<GeminiLiveSession | null>(null);
   const nextId = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
-    computeFingerprint()
-      .then((fp) => {
-        if (cancelled) return;
-        setFingerprint(fp);
-        if (hasConsumedDemo(fp)) setDemoLocked(true);
-      })
-      .catch(() => {
-        /* fingerprint best-effort */
-      });
     return () => {
-      cancelled = true;
       sessionRef.current?.stop();
       sessionRef.current = null;
     };
@@ -98,46 +84,27 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
 
   const start = useCallback(async () => {
     if (sessionRef.current) return;
-    if (demoLocked) return;
-    // Make sure the fingerprint is ready before we mint a token. Otherwise
-    // a fast-clicking visitor starts a session before useEffect resolves
-    // and we can't mark it consumed when it ends.
-    let fp = fingerprint;
-    if (!fp) {
-      try {
-        fp = await computeFingerprint();
-        setFingerprint(fp);
-      } catch {
-        fp = null;
-      }
-    }
-    if (fp && hasConsumedDemo(fp)) {
-      setDemoLocked(true);
-      return;
-    }
-    // Lock IMMEDIATELY so a refresh mid-call doesn't give them a second try.
-    if (fp) {
-      markDemoConsumed(fp);
-      setDemoLocked(true);
-    }
     setError(null);
     setFirstAudioMs(null);
     setTranscripts([]);
     setTurnIndex(0);
     setEndedReason(null);
     setStatus('connecting');
+    const t0 = performance.now();
     let minted: EphemeralTokenResponse;
     try {
       const resp = await fetch('/api/gemini-ephemeral-token', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ fingerprint: fp }),
+        body: JSON.stringify({}),
       });
       if (!resp.ok) {
         const body = await resp.json().catch(() => ({}));
         throw new Error(body.error || `token mint failed (${resp.status})`);
       }
       minted = (await resp.json()) as EphemeralTokenResponse;
+      // eslint-disable-next-line no-console
+      console.log(`[arryve-demo] token mint ${Math.round(performance.now() - t0)} ms`);
     } catch (err) {
       setStatus('error');
       setError(err instanceof Error ? err.message : String(err));
@@ -155,10 +122,6 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
         onError: (err) => setError(err.message || String(err)),
         onEnded: (reason) => {
           setEndedReason(reason);
-          // Belt-and-braces mark (in case the start-time mark was skipped
-          // because fingerprint wasn't ready yet).
-          if (fp) markDemoConsumed(fp);
-          setDemoLocked(true);
           sessionRef.current = null;
         },
       }
@@ -169,7 +132,7 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
     } catch {
       sessionRef.current = null;
     }
-  }, [appendTranscript, demoLocked, fingerprint]);
+  }, [appendTranscript]);
 
   const stop = useCallback(async () => {
     await sessionRef.current?.stop();
