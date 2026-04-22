@@ -148,14 +148,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           config: {
             responseModalities: [Modality.AUDIO],
             systemInstruction: SYSTEM_INSTRUCTION,
+            // Language pinning is Vertex-only — the Gemini Live API ignores
+            // speechConfig.languageCode and AudioTranscriptionConfig.languageCodes,
+            // so we enforce English purely through the system prompt.
             speechConfig: {
-              languageCode: 'en-US',
               voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } },
             },
-            // Pin STT to English so background speech in other languages
-            // can't be transcribed and fed back into the model.
-            inputAudioTranscription: { languageCodes: ['en-US'] },
-            outputAudioTranscription: { languageCodes: ['en-US'] },
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
             tools,
             // Noise-tolerant VAD: default sensitivity flags ambient sound
             // as user speech and interrupts Arvy mid-reply. LOW + longer

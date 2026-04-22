@@ -162,12 +162,12 @@ export function ephemeralTokenPlugin(): Plugin {
                 config: {
                   responseModalities: [Modality.AUDIO],
                   systemInstruction: SYSTEM_INSTRUCTION,
+                  // languageCode / languageCodes are Vertex-only; Gemini API ignores.
                   speechConfig: {
-                    languageCode: 'en-US',
                     voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } },
                   },
-                  inputAudioTranscription: { languageCodes: ['en-US'] },
-                  outputAudioTranscription: { languageCodes: ['en-US'] },
+                  inputAudioTranscription: {},
+                  outputAudioTranscription: {},
                   tools,
                   realtimeInputConfig: {
                     automaticActivityDetection: {
