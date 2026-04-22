@@ -101,6 +101,27 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
   const start = useCallback(async () => {
     if (sessionRef.current) return;
     if (demoLocked) return;
+    // Make sure the fingerprint is ready before we mint a token. Otherwise
+    // a fast-clicking visitor starts a session before useEffect resolves
+    // and we can't mark it consumed when it ends.
+    let fp = fingerprint;
+    if (!fp) {
+      try {
+        fp = await computeFingerprint();
+        setFingerprint(fp);
+      } catch {
+        fp = null;
+      }
+    }
+    if (fp && hasConsumedDemo(fp)) {
+      setDemoLocked(true);
+      return;
+    }
+    // Lock IMMEDIATELY so a refresh mid-call doesn't give them a second try.
+    if (fp) {
+      markDemoConsumed(fp);
+      setDemoLocked(true);
+    }
     setError(null);
     setFirstAudioMs(null);
     setTranscripts([]);
@@ -112,7 +133,7 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
       const resp = await fetch('/api/gemini-ephemeral-token', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ fingerprint }),
+        body: JSON.stringify({ fingerprint: fp }),
       });
       if (!resp.ok) {
         const body = await resp.json().catch(() => ({}));
@@ -136,10 +157,10 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
         onError: (err) => setError(err.message || String(err)),
         onEnded: (reason) => {
           setEndedReason(reason);
-          if (fingerprint) {
-            markDemoConsumed(fingerprint);
-            setDemoLocked(true);
-          }
+          // Belt-and-braces mark (in case the start-time mark was skipped
+          // because fingerprint wasn't ready yet).
+          if (fp) markDemoConsumed(fp);
+          setDemoLocked(true);
           sessionRef.current = null;
         },
       }

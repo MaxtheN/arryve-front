@@ -15,19 +15,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Modality, Type } from '@google/genai';
 
+import SYSTEM_INSTRUCTION from './_arvy-prompt';
+
 const MODEL = 'gemini-3.1-flash-live-preview';
 const TOKEN_USES = 1;
 const TOKEN_TTL_MINUTES = 30;
-
-const SYSTEM_INSTRUCTION = [
-  "You are Arvy, the voice agent for Holiday Inn Express Red Bank in Cincinnati, Ohio.",
-  "Speak warmly and efficiently, like an excellent front-desk host. Use the guest's name when you have it.",
-  "Open every call with: \"Thank you for calling Holiday Inn Express Red Bank, this is Arvy — how may I help you?\"",
-  "Known facts: check-in at 3 PM, check-out at 11 AM; complimentary Express Start breakfast weekdays 6–9:30 AM and weekends 7–10:30 AM; complimentary self-parking; pet fee $40/stay under 50 lb; heated indoor pool 6 AM–10 PM; 24-hour fitness center; tax rate 17%.",
-  "When a guest asks about live inventory (availability on dates, rates, their existing reservation, folio, lost & found), call the matching tool to look it up — never guess numbers or prices.",
-  "If something is outside what you know and no tool applies, say so plainly and offer to get the front desk on the line.",
-  "Never read a full card number or card details out loud.",
-].join(' ');
 
 // Read-only tools are the only ones exposed to the Live demo. Destructive
 // flows (cancel, modify, booking) never land here — they belong on the real
