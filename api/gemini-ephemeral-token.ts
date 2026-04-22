@@ -13,7 +13,13 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Modality, Type } from '@google/genai';
+import {
+  EndSensitivity,
+  GoogleGenAI,
+  Modality,
+  StartSensitivity,
+  Type,
+} from '@google/genai';
 
 import SYSTEM_INSTRUCTION from './_arvy-prompt.js';
 
@@ -123,6 +129,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             inputAudioTranscription: {},
             outputAudioTranscription: {},
             tools,
+            // Noise-tolerant VAD: default sensitivity flags ambient sound
+            // as user speech and interrupts Arvy mid-reply. LOW + longer
+            // silence window means Gemini only interrupts on real speech.
+            realtimeInputConfig: {
+              automaticActivityDetection: {
+                startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW,
+                endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+                prefixPaddingMs: 300,
+                silenceDurationMs: 800,
+              },
+            },
           },
         },
       },

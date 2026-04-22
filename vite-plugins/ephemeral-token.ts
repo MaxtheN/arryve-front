@@ -17,7 +17,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import crypto from 'node:crypto';
 import type { Plugin } from 'vite';
-import { GoogleGenAI, Modality, Type } from '@google/genai';
+import {
+  EndSensitivity,
+  GoogleGenAI,
+  Modality,
+  StartSensitivity,
+  Type,
+} from '@google/genai';
 
 import SYSTEM_INSTRUCTION from '../api/_arvy-prompt';
 
@@ -145,6 +151,14 @@ export function ephemeralTokenPlugin(): Plugin {
                   inputAudioTranscription: {},
                   outputAudioTranscription: {},
                   tools,
+                  realtimeInputConfig: {
+                    automaticActivityDetection: {
+                      startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW,
+                      endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+                      prefixPaddingMs: 300,
+                      silenceDurationMs: 800,
+                    },
+                  },
                 },
               },
             },
