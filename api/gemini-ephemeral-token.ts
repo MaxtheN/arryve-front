@@ -33,6 +33,22 @@ const TOKEN_TTL_MINUTES = 30;
 // (no server round-trip) — the client tears down the WebSocket after
 // the model's final reply plays out.
 function safeTools(toolsEnabled: boolean) {
+  const kbLookup = {
+    name: 'lookup_property_info',
+    description:
+      "Return a specific section of the Holiday Inn Express Red Bank knowledge base. Call this before answering any question about rates, policies, amenities, hours, Wi-Fi, pool, breakfast, parking, pets, dining, attractions, accessibility, or IHG One Rewards. Pass topic='index' if you're not sure which section to request.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        topic: {
+          type: Type.STRING,
+          description:
+            "Topic slug. Valid: identity, rooms, in_room_amenities, brand_amenities, breakfast, wifi, pool, fitness, business_center, parking, ev_charging, check_in_out, late_checkout, cancellation, smoking, pets, id_requirements, deposit, taxes, accessibility, dining, attractions, logistics, ihg_rewards, index.",
+        },
+      },
+      required: ['topic'],
+    },
+  };
   const grounding = toolsEnabled
     ? [
         {
@@ -68,6 +84,7 @@ function safeTools(toolsEnabled: boolean) {
   return [
     {
       functionDeclarations: [
+        kbLookup,
         ...grounding,
         {
           name: 'end_call',
@@ -132,10 +149,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             responseModalities: [Modality.AUDIO],
             systemInstruction: SYSTEM_INSTRUCTION,
             speechConfig: {
+              languageCode: 'en-US',
               voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } },
             },
-            inputAudioTranscription: {},
-            outputAudioTranscription: {},
+            // Pin STT to English so background speech in other languages
+            // can't be transcribed and fed back into the model.
+            inputAudioTranscription: { languageCodes: ['en-US'] },
+            outputAudioTranscription: { languageCodes: ['en-US'] },
             tools,
             // Noise-tolerant VAD: default sensitivity flags ambient sound
             // as user speech and interrupts Arvy mid-reply. LOW + longer

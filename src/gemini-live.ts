@@ -23,6 +23,7 @@ import {
 } from '@google/genai';
 
 import { getSessionId, logDemoEvent } from './demo-log';
+import { lookupPropertyInfo } from './property-kb';
 
 const INPUT_RATE = 16000;
 const OUTPUT_RATE = 24000;
@@ -243,6 +244,19 @@ export class GeminiLiveSession {
         responses.push({ id, name, response: { output: { ok: true } } });
         shouldEnd = true;
         logDemoEvent('tool_call', { name: 'end_call', args });
+        continue;
+      }
+      // Local-only tool: resolve KB lookups in-process. Zero network, ~0.1ms.
+      if (name === 'lookup_property_info') {
+        const topic = typeof args?.topic === 'string' ? args.topic : 'index';
+        const info = lookupPropertyInfo(topic);
+        responses.push({ id, name, response: { output: { topic, info } } });
+        logDemoEvent('tool_call', {
+          name: 'lookup_property_info',
+          args: { topic },
+          ms: 0,
+          ok: true,
+        });
         continue;
       }
       const toolStart = performance.now();

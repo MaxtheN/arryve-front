@@ -38,6 +38,22 @@ const TOOL_TO_FLOW: Record<string, string> = {
 const ALLOWED_FLOWS = new Set(Object.values(TOOL_TO_FLOW));
 
 function safeTools(toolsEnabled: boolean) {
+  const kbLookup = {
+    name: 'lookup_property_info',
+    description:
+      "Return a specific section of the Holiday Inn Express Red Bank knowledge base. Call this before answering any question about rates, policies, amenities, hours, Wi-Fi, pool, breakfast, parking, pets, dining, attractions, accessibility, or IHG One Rewards. Pass topic='index' if unsure.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        topic: {
+          type: Type.STRING,
+          description:
+            "Topic slug. Valid: identity, rooms, in_room_amenities, brand_amenities, breakfast, wifi, pool, fitness, business_center, parking, ev_charging, check_in_out, late_checkout, cancellation, smoking, pets, id_requirements, deposit, taxes, accessibility, dining, attractions, logistics, ihg_rewards, index.",
+        },
+      },
+      required: ['topic'],
+    },
+  };
   const grounding = toolsEnabled
     ? [
         {
@@ -73,6 +89,7 @@ function safeTools(toolsEnabled: boolean) {
   return [
     {
       functionDeclarations: [
+        kbLookup,
         ...grounding,
         {
           name: 'end_call',
@@ -146,10 +163,11 @@ export function ephemeralTokenPlugin(): Plugin {
                   responseModalities: [Modality.AUDIO],
                   systemInstruction: SYSTEM_INSTRUCTION,
                   speechConfig: {
+                    languageCode: 'en-US',
                     voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } },
                   },
-                  inputAudioTranscription: {},
-                  outputAudioTranscription: {},
+                  inputAudioTranscription: { languageCodes: ['en-US'] },
+                  outputAudioTranscription: { languageCodes: ['en-US'] },
                   tools,
                   realtimeInputConfig: {
                     automaticActivityDetection: {
