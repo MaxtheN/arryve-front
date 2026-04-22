@@ -4,6 +4,8 @@ import { ArrowRight, ArrowLeft, ChevronDown, Check, RotateCw, Play, Pause, Info,
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { playArvyVoice, speakArvy, stopArvyVoice, VOICES } from './voice';
+import { GeminiLiveDemo } from './GeminiLiveDemo';
+import { useVoiceDemo } from './VoiceDemoContext';
 
 /* ─── Shared: speech helper ─── */
 
@@ -319,19 +321,39 @@ function Navbar() {
 function HeroSection() {
   const { scrollY } = useScroll();
   const imgY = useTransform(scrollY, [0, 800], [0, 80]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const {
+    status: demoStatus,
+    demoLocked,
+    start: startVoiceDemo,
+    stop: stopVoiceDemo,
+  } = useVoiceDemo();
+  const demoActive =
+    demoStatus === 'connecting' ||
+    demoStatus === 'listening' ||
+    demoStatus === 'speaking';
 
-  const handleHearArvy = () => {
-    if (isSpeaking) {
-      stopArvyVoice();
-      setIsSpeaking(false);
+  const handleHearArvy = async () => {
+    if (demoActive) {
+      await stopVoiceDemo();
       return;
     }
-    playArvyVoice(VOICES.hero, {
-      onStart: () => setIsSpeaking(true),
-      onEnd: () => setIsSpeaking(false),
-    });
+    if (demoLocked) {
+      // Their browser already consumed the demo — scroll to the panel so
+      // they see the "book a pilot" CTA rather than silently doing nothing.
+      document.getElementById('try-a-call')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    await startVoiceDemo();
+    // Pull the transcript panel into view so the visitor sees Arvy's
+    // replies alongside the conversation.
+    document.getElementById('try-a-call')?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  const buttonLabel = demoActive
+    ? 'End call with Arvy'
+    : demoLocked
+    ? 'Demo already used'
+    : 'Talk to Arvy now';
 
   return (
     <section className="film-grain relative min-h-[100svh] overflow-hidden text-white">
@@ -390,19 +412,20 @@ function HeroSection() {
                 <button
                   type="button"
                   onClick={handleHearArvy}
-                  className="group inline-flex items-center gap-3 pl-1.5 pr-5 py-1.5 rounded-full border border-ivory-50/25 bg-ivory-50/[0.06] backdrop-blur-sm hover:bg-ivory-50/[0.12] transition-colors"
-                  aria-label={isSpeaking ? 'Stop Arvy' : 'Hear Arvy answer'}
+                  disabled={demoLocked && !demoActive}
+                  className="group inline-flex items-center gap-3 pl-1.5 pr-5 py-1.5 rounded-full border border-ivory-50/25 bg-ivory-50/[0.06] backdrop-blur-sm hover:bg-ivory-50/[0.12] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  aria-label={buttonLabel}
                 >
                   <span className="relative grid place-items-center h-9 w-9 rounded-full bg-ivory-50 text-forest-950">
-                    {!isSpeaking && (
+                    {!demoActive && !demoLocked && (
                       <span className="absolute inset-0 rounded-full bg-ivory-50 opacity-60 animate-ping" />
                     )}
                     <span className="relative">
-                      {isSpeaking ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-[1px]" />}
+                      {demoActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-[1px]" />}
                     </span>
                   </span>
                   <span className="text-sm font-medium text-ivory-50">
-                    {isSpeaking ? 'Arvy is speaking…' : 'Hear Arvy answer'}
+                    {buttonLabel}
                   </span>
                 </button>
               </div>
@@ -1065,62 +1088,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 /* ─── Try a call (voice demo) ─── */
 
-const KB: Array<{ match: RegExp; a: string; audio?: string }> = [
-  { match: /check.?in|arriv/i, a: "Check-in begins at 3 PM. If you arrive earlier, I can ask the front desk to hold your bags.", audio: VOICES.checkIn },
-  { match: /check.?out/i, a: "Check-out is by 11 AM. If you'd like a late check-out, I can request it with the front desk." },
-  { match: /breakfast/i, a: "Breakfast is served in the lobby from 7 to 10 AM — complimentary with every stay.", audio: VOICES.breakfast },
-  { match: /park/i, a: "We offer complimentary self-parking on site for all guests.", audio: VOICES.parking },
-  { match: /pet|dog|cat/i, a: "Yes, we're pet-friendly. There's a thirty dollar cleaning fee for the stay.", audio: VOICES.pets },
-  { match: /pool|gym|fitness/i, a: "The pool and fitness center are open daily from 7 AM to 10 PM." },
-  { match: /wifi|wi-?fi|internet/i, a: "Complimentary Wi-Fi is available throughout the hotel. The password is on your key card." },
-  { match: /(available|book|reserv|room|night)/i, a: "I'd be glad to help with a reservation. What dates are you considering, and how many guests?" },
-  { match: /cancel/i, a: "Cancellations are free up to 48 hours before arrival. I can also connect you with our front desk for special cases." },
-];
-
 function TryACallSection() {
-  const [query, setQuery] = useState("");
-  const [history, setHistory] = useState<Array<{ who: string; text: string; id: number }>>([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const nextId = useRef(0);
-
-  const suggestions = [
-    "What time is check-in?",
-    "Do you allow pets?",
-    "Is parking free?",
-    "When is breakfast?",
-  ];
-
-  const ask = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const match = KB.find((k) => k.match.test(trimmed));
-    const answer = match?.a ?? "Let me connect you with our front desk — they'll have the best answer on that one.";
-    const guestId = nextId.current++;
-    const arvyId = nextId.current++;
-    setHistory((prev) => [
-      ...prev.slice(-4),
-      { who: "Guest", text: trimmed, id: guestId },
-      { who: "Arvy", text: answer, id: arvyId },
-    ]);
-    setQuery("");
-    const callbacks = {
-      onStart: () => setIsSpeaking(true),
-      onEnd: () => setIsSpeaking(false),
-    };
-    // Prefer the recorded AI voice when the KB entry has one; fall back
-    // to browser TTS for questions without a recording yet.
-    if (match?.audio) {
-      playArvyVoice(match.audio, callbacks);
-    } else {
-      speakArvy(answer, callbacks);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    ask(query);
-  };
-
   return (
     <section
       id="try-a-call"
@@ -1133,94 +1101,18 @@ function TryACallSection() {
             Try a call
           </div>
           <h2 className="font-serif text-[44px] md:text-[60px] lg:text-[72px] font-normal tracking-[-0.02em] leading-[1.02] text-forest-950 mb-5 text-balance">
-            Ask Arvy <em className="italic font-light">anything</em>.
+            Talk to Arvy <em className="italic font-light">live</em>.
           </h2>
           <p className="text-base md:text-lg text-ivory-700 leading-[1.6] max-w-md text-pretty mb-6">
-            Type a question the way a guest would. Arvy answers in seconds — and speaks it out loud, so you can hear her tone before anyone books a room.
+            Click <strong>Start call</strong> and speak. Arvy hears you, thinks, and replies in real time — the same voice-to-voice agent that answers the phone at a real property.
           </p>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-forest-950/50 font-medium mb-3">
-            A few to try
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {suggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => ask(s)}
-                className="text-[13px] text-forest-950/85 bg-white border border-ivory-200 hover:border-forest-950/30 hover:bg-ivory-100 transition-colors rounded-full px-3.5 py-1.5"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <p className="text-[13px] text-ivory-700/85 leading-[1.55] max-w-md text-pretty">
+            Arvy ends the call when you're done. A real property version grounds every answer in your PMS and stays live as long as the guest needs.
+          </p>
         </FadeIn>
 
-        <FadeIn delay={0.12}>
-          <div className="rounded-3xl bg-white border border-forest-950/10 shadow-[0_40px_120px_-40px_rgba(3,36,30,0.22)] overflow-hidden">
-            <div className="flex items-center justify-between px-6 md:px-7 py-5 border-b border-ivory-200">
-              <div className="flex items-center gap-3">
-                <span className="relative flex h-2 w-2">
-                  {isSpeaking && (
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-forest-900 opacity-60" />
-                  )}
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-forest-900" />
-                </span>
-                <span className="text-[11px] uppercase tracking-[0.22em] text-forest-950/70 font-medium">
-                  {isSpeaking ? 'Arvy is speaking' : 'Live demo'}
-                </span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-forest-950/50 font-medium">
-                <Sparkles className="w-3 h-3" />
-                Browser voice
-              </div>
-            </div>
-
-            <div className="px-6 md:px-7 py-6 min-h-[220px] max-h-[320px] overflow-y-auto">
-              {history.length === 0 ? (
-                <div className="text-center text-[14px] text-forest-950/50 py-8 font-serif italic">
-                  Your conversation with Arvy will appear here.
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <AnimatePresence initial={false}>
-                    {history.map((m) => (
-                      <motion.div
-                        key={m.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                      >
-                        <div className="text-[10px] uppercase tracking-[0.22em] text-forest-950/50 mb-1 font-medium">
-                          {m.who}
-                        </div>
-                        <p className="text-[15px] md:text-base text-forest-950/90 leading-[1.5]">
-                          {m.text}
-                        </p>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleSubmit} className="border-t border-ivory-200 bg-ivory-50 p-3 flex items-center gap-2">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ask Arvy a question…"
-                className="flex-1 bg-transparent text-[15px] text-forest-950 placeholder:text-forest-950/40 px-3 py-2.5 focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={!query.trim()}
-                className="inline-flex items-center gap-1.5 bg-forest-950 text-ivory-50 px-4 py-2.5 rounded-full text-sm font-medium hover:bg-forest-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Ask
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </form>
-          </div>
+        <FadeIn delay={0.08}>
+          <GeminiLiveDemo />
         </FadeIn>
       </div>
     </section>
