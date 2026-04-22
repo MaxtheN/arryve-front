@@ -1107,7 +1107,7 @@ function TryACallSection() {
             Click <strong>Start call</strong> and speak. Arvy hears you, thinks, and replies in real time — the same voice-to-voice agent that answers the phone at a real property.
           </p>
           <p className="text-[13px] text-ivory-700/85 leading-[1.55] max-w-md text-pretty">
-            Demo runs up to ten turns on this browser. A real call has no limit and grounds every answer in your PMS.
+            Arvy ends the call when you're done. A real property version grounds every answer in your PMS and stays live as long as the guest needs.
           </p>
         </FadeIn>
 

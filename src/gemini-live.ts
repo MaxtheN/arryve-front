@@ -51,10 +51,6 @@ export interface GeminiLiveConfig {
   // in the browser.
   token: string;
   model: string;
-  // Max full turns (user said something + model replied) before the demo
-  // gracefully winds down. Defaults to 10 — enough for a real conversation
-  // without giving anyone a free long-running Gemini Live session.
-  maxTurns?: number;
 }
 
 export class GeminiLiveSession {
@@ -72,8 +68,7 @@ export class GeminiLiveSession {
   private turnStartedAt: number | null = null;
   private waitingForFirstAudio = false;
   private completedTurns = 0;
-  private winddownSent = false;
-  private endReason: 'turn-limit' | 'user-stopped' | 'server-closed' | null = null;
+  private endReason: 'model-ended' | 'user-stopped' | 'server-closed' | null = null;
 
   constructor(config: GeminiLiveConfig, callbacks: GeminiLiveCallbacks = {}) {
     if (!config.token) {
@@ -226,9 +221,19 @@ export class GeminiLiveSession {
 
   private async resolveToolCalls(calls: FunctionCall[]) {
     const responses: FunctionResponse[] = [];
+    let shouldEnd = false;
     for (const call of calls) {
       const { id, name, args } = call;
       if (!name) continue;
+      // Built-in client-side tool: the model calls `end_call` when the
+      // conversation is naturally complete. We ack it so the model doesn't
+      // hang waiting for a response, then tear down after the last audio
+      // chunk finishes playing.
+      if (name === 'end_call') {
+        responses.push({ id, name, response: { output: { ok: true } } });
+        shouldEnd = true;
+        continue;
+      }
       try {
         const resp = await fetch('/api/tool-invoke', {
           method: 'POST',
@@ -254,6 +259,10 @@ export class GeminiLiveSession {
       }
     }
     this.session?.sendToolResponse({ functionResponses: responses });
+    if (shouldEnd) {
+      this.endReason = 'model-ended';
+      this.endAfterPlaybackDrains();
+    }
   }
 
   private handleServerMessage(msg: LiveServerMessage) {
@@ -296,58 +305,19 @@ export class GeminiLiveSession {
     if (msg.serverContent?.turnComplete) {
       this.completedTurns += 1;
       this.callbacks.onTurnEnd?.(this.completedTurns);
-      const maxTurns = this.config.maxTurns ?? 10;
-      if (this.completedTurns >= maxTurns) {
-        // Hard end. The model just finished speaking, so stop the mic
-        // pump + schedule a clean close once playback drains.
-        this.endDueToTurnLimit();
-        return;
-      }
-      if (!this.winddownSent && this.completedTurns >= maxTurns - 2) {
-        // Gentle nudge: inject a user-message hint so the model starts
-        // wrapping the call in the next response. Gemini sees this as a
-        // non-speaking hint and stays in character.
-        this.winddownSent = true;
-        try {
-          this.session?.sendClientContent({
-            turns: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    text:
-                      '[system hint: This is a short demo. Please wrap up the conversation naturally within one or two more exchanges and offer to have the front desk call back if there is more to discuss.]',
-                  },
-                ],
-              },
-            ],
-            turnComplete: false,
-          });
-        } catch {
-          /* wind-down hint is best-effort; ignore failures */
-        }
-      }
       this.turnStartedAt = performance.now();
       this.waitingForFirstAudio = true;
       this.setStatus('listening');
     }
   }
 
-  private endDueToTurnLimit() {
-    this.endReason = 'turn-limit';
+  private endAfterPlaybackDrains() {
     this.detachMic();
-    // Let the last reply finish playing, then close. The playback schedule
-    // horizon lives in playbackQueueEndsAt.
     const remainingMs =
       this.playbackCtx && this.playbackQueueEndsAt > this.playbackCtx.currentTime
         ? (this.playbackQueueEndsAt - this.playbackCtx.currentTime) * 1000
         : 0;
-    setTimeout(
-      () => {
-        void this.stop();
-      },
-      Math.max(250, remainingMs + 250)
-    );
+    setTimeout(() => void this.stop(), Math.max(250, remainingMs + 250));
   }
 
   private playAudioChunk(base64: string) {

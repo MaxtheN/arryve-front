@@ -22,13 +22,13 @@ const TOKEN_USES = 1;
 const TOKEN_TTL_MINUTES = 30;
 
 // Public-demo tool set: only flows whose outputs are effectively public
-// information. Lookups that reveal another guest's reservation data
-// (search_by_phone, rate_details, read_folio) are kept OUT of the demo
-// tool schema — they require real caller-id context we don't have here.
-function safeTools() {
-  return [
-    {
-      functionDeclarations: [
+// information, plus a client-side `end_call` tool the model invokes when
+// the conversation is naturally done. That tool lives in the browser
+// (no server round-trip) — the client tears down the WebSocket after
+// the model's final reply plays out.
+function safeTools(toolsEnabled: boolean) {
+  const grounding = toolsEnabled
+    ? [
         {
           name: 'search_availability',
           description:
@@ -47,7 +47,7 @@ function safeTools() {
         {
           name: 'lost_found_search',
           description:
-            'Search the Lost & Found dashboard by date range, status, or keyword. Returns item descriptions — no guest PII.',
+            'Search the Lost & Found dashboard by date range or keyword. Returns item descriptions — no guest PII.',
           parameters: {
             type: Type.OBJECT,
             properties: {
@@ -55,6 +55,28 @@ function safeTools() {
               fromDate: { type: Type.STRING, description: 'YYYY-MM-DD' },
               toDate: { type: Type.STRING, description: 'YYYY-MM-DD' },
             },
+          },
+        },
+      ]
+    : [];
+  return [
+    {
+      functionDeclarations: [
+        ...grounding,
+        {
+          name: 'end_call',
+          description:
+            'Politely end the call once the guest is satisfied and has no further requests. Call this AFTER your farewell line so the goodbye audio plays out before the line drops. Only end the call when the guest confirms they are done.',
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              reason: {
+                type: Type.STRING,
+                description:
+                  'Short free-text label for why the call is ending (e.g. "guest satisfied", "guest will call back", "transferred to desk").',
+              },
+            },
+            required: [],
           },
         },
       ],
@@ -81,7 +103,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       httpOptions: { apiVersion: 'v1alpha' },
     });
     const expireTime = new Date(Date.now() + TOKEN_TTL_MINUTES * 60_000).toISOString();
-    const tools = process.env.AUTOMATION_URL ? safeTools() : undefined;
+    const toolsEnabled = Boolean(process.env.AUTOMATION_URL);
+    // Always include `end_call`; include the grounding flows only when an
+    // automation backend is configured.
+    const tools = safeTools(toolsEnabled);
 
     const token = await ai.authTokens.create({
       config: {
@@ -97,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
-            ...(tools ? { tools } : {}),
+            tools,
           },
         },
       },
@@ -107,7 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       token: token.name,
       model: MODEL,
       expiresAt: expireTime,
-      toolsEnabled: Boolean(tools),
+      toolsEnabled,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

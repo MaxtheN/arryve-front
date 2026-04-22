@@ -31,10 +31,9 @@ const TOOL_TO_FLOW: Record<string, string> = {
 };
 const ALLOWED_FLOWS = new Set(Object.values(TOOL_TO_FLOW));
 
-function safeTools() {
-  return [
-    {
-      functionDeclarations: [
+function safeTools(toolsEnabled: boolean) {
+  const grounding = toolsEnabled
+    ? [
         {
           name: 'search_availability',
           description:
@@ -61,6 +60,24 @@ function safeTools() {
               fromDate: { type: Type.STRING },
               toDate: { type: Type.STRING },
             },
+          },
+        },
+      ]
+    : [];
+  return [
+    {
+      functionDeclarations: [
+        ...grounding,
+        {
+          name: 'end_call',
+          description:
+            'Politely end the call once the guest is satisfied. Call AFTER your farewell line so the goodbye audio plays out before the line drops.',
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              reason: { type: Type.STRING },
+            },
+            required: [],
           },
         },
       ],
@@ -111,7 +128,8 @@ export function ephemeralTokenPlugin(): Plugin {
           const expireTime = new Date(
             Date.now() + TOKEN_TTL_MINUTES * 60_000
           ).toISOString();
-          const tools = process.env.AUTOMATION_URL ? safeTools() : undefined;
+          const toolsEnabled = Boolean(process.env.AUTOMATION_URL);
+          const tools = safeTools(toolsEnabled);
           const token = await ai.authTokens.create({
             config: {
               uses: TOKEN_USES,
@@ -126,7 +144,7 @@ export function ephemeralTokenPlugin(): Plugin {
                   },
                   inputAudioTranscription: {},
                   outputAudioTranscription: {},
-                  ...(tools ? { tools } : {}),
+                  tools,
                 },
               },
             },
@@ -136,7 +154,7 @@ export function ephemeralTokenPlugin(): Plugin {
             token: token.name,
             model: MODEL,
             expiresAt: expireTime,
-            toolsEnabled: Boolean(tools),
+            toolsEnabled,
           });
         } catch (err) {
           json(res, 500, { error: err instanceof Error ? err.message : String(err) });

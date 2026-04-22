@@ -24,8 +24,6 @@ import {
   markDemoConsumed,
 } from './demo-fingerprint';
 
-export const MAX_TURNS = 10;
-
 export type TranscriptEntry = { id: number; role: 'user' | 'model'; text: string };
 
 interface EphemeralTokenResponse {
@@ -147,7 +145,7 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
     }
     setToolsEnabled(Boolean(minted.toolsEnabled));
     const session = new GeminiLiveSession(
-      { token: minted.token, model: minted.model, maxTurns: MAX_TURNS },
+      { token: minted.token, model: minted.model },
       {
         onStatus: setStatus,
         onFirstAudio: (ms) => setFirstAudioMs(Math.round(ms)),

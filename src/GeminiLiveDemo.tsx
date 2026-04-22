@@ -1,8 +1,5 @@
 import { Mic, MicOff, Sparkles } from 'lucide-react';
-import {
-  MAX_TURNS,
-  useVoiceDemo,
-} from './VoiceDemoContext';
+import { useVoiceDemo } from './VoiceDemoContext';
 import type { GeminiLiveStatus } from './gemini-live';
 
 /* Voice-to-voice demo panel. The actual session is owned by VoiceDemoContext
@@ -91,9 +88,9 @@ export function GeminiLiveDemo() {
         </div>
       )}
 
-      {endedReason === 'turn-limit' && !error && (
+      {endedReason === 'model-ended' && !error && (
         <div className="px-6 md:px-7 py-3 text-[13px] text-forest-950/70 bg-ivory-100 border-t border-ivory-200">
-          That's the demo — a real call with Arvy runs as long as the guest needs.
+          Arvy wrapped up the call. Want her on your own property? <a href="#pricing" className="underline underline-offset-2 hover:text-forest-950">Book a pilot →</a>
         </div>
       )}
 
@@ -105,16 +102,6 @@ export function GeminiLiveDemo() {
                 First reply
               </span>
               <span className="font-mono text-forest-950/90">{firstAudioMs} ms</span>
-            </div>
-          )}
-          {isActive && turnIndex > 0 && (
-            <div>
-              <span className="uppercase tracking-[0.18em] text-forest-950/50 text-[10px] font-medium mr-1.5">
-                Turn
-              </span>
-              <span className="font-mono text-forest-950/90">
-                {turnIndex} / {MAX_TURNS}
-              </span>
             </div>
           )}
         </div>
