@@ -21,9 +21,10 @@ const MODEL = 'gemini-3.1-flash-live-preview';
 const TOKEN_USES = 1;
 const TOKEN_TTL_MINUTES = 30;
 
-// Read-only tools are the only ones exposed to the Live demo. Destructive
-// flows (cancel, modify, booking) never land here — they belong on the real
-// phone-line agent with a verification ladder + confirm gate.
+// Public-demo tool set: only flows whose outputs are effectively public
+// information. Lookups that reveal another guest's reservation data
+// (search_by_phone, rate_details, read_folio) are kept OUT of the demo
+// tool schema — they require real caller-id context we don't have here.
 function safeTools() {
   return [
     {
@@ -31,7 +32,7 @@ function safeTools() {
         {
           name: 'search_availability',
           description:
-            'Check bookable rates at Holiday Inn Express Red Bank for a date range.',
+            'Check bookable rates at Holiday Inn Express Red Bank for a date range. Returns room types and per-night rates — no guest info.',
           parameters: {
             type: Type.OBJECT,
             properties: {
@@ -44,48 +45,15 @@ function safeTools() {
           },
         },
         {
-          name: 'search_by_phone',
-          description: 'Look up reservations by a phone number (primary caller-id handshake).',
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              phone: { type: Type.STRING },
-            },
-            required: ['phone'],
-          },
-        },
-        {
-          name: 'rate_details',
-          description: "Read-only snapshot of a reservation's rate, dates, and guest counts.",
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              res: { type: Type.STRING, description: 'Reservation UUID or confirmation number.' },
-            },
-            required: ['res'],
-          },
-        },
-        {
-          name: 'read_folio',
-          description: 'Return a structured snapshot of a reservation folio (totals, balance, last-4 of the on-file card).',
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              res: { type: Type.STRING, description: 'Reservation UUID or confirmation number.' },
-            },
-            required: ['res'],
-          },
-        },
-        {
           name: 'lost_found_search',
-          description: 'Search the Lost & Found dashboard by date range, status, or keyword.',
+          description:
+            'Search the Lost & Found dashboard by date range, status, or keyword. Returns item descriptions — no guest PII.',
           parameters: {
             type: Type.OBJECT,
             properties: {
               keyword: { type: Type.STRING },
               fromDate: { type: Type.STRING, description: 'YYYY-MM-DD' },
               toDate: { type: Type.STRING, description: 'YYYY-MM-DD' },
-              roomNumber: { type: Type.STRING },
             },
           },
         },

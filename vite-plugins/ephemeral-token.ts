@@ -27,9 +27,6 @@ const TOKEN_TTL_MINUTES = 30;
 
 const TOOL_TO_FLOW: Record<string, string> = {
   search_availability: 'search-availability',
-  search_by_phone: 'search-by-phone',
-  rate_details: 'rate-details',
-  read_folio: 'read-folio',
   lost_found_search: 'lost-found-search',
 };
 const ALLOWED_FLOWS = new Set(Object.values(TOOL_TO_FLOW));
@@ -41,7 +38,7 @@ function safeTools() {
         {
           name: 'search_availability',
           description:
-            'Check bookable rates at Holiday Inn Express Red Bank for a date range.',
+            'Check bookable rates at Holiday Inn Express Red Bank for a date range. Returns room types and per-night rates — no guest info.',
           parameters: {
             type: Type.OBJECT,
             properties: {
@@ -54,46 +51,15 @@ function safeTools() {
           },
         },
         {
-          name: 'search_by_phone',
-          description: 'Look up reservations by a phone number (primary caller-id handshake).',
-          parameters: {
-            type: Type.OBJECT,
-            properties: { phone: { type: Type.STRING } },
-            required: ['phone'],
-          },
-        },
-        {
-          name: 'rate_details',
-          description: "Read-only snapshot of a reservation's rate, dates, and guest counts.",
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              res: { type: Type.STRING, description: 'Reservation UUID or confirmation number.' },
-            },
-            required: ['res'],
-          },
-        },
-        {
-          name: 'read_folio',
-          description: 'Return a structured snapshot of a reservation folio.',
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              res: { type: Type.STRING, description: 'Reservation UUID or confirmation number.' },
-            },
-            required: ['res'],
-          },
-        },
-        {
           name: 'lost_found_search',
-          description: 'Search the Lost & Found dashboard.',
+          description:
+            'Search the Lost & Found dashboard by date range or keyword. Returns item descriptions — no guest PII.',
           parameters: {
             type: Type.OBJECT,
             properties: {
               keyword: { type: Type.STRING },
               fromDate: { type: Type.STRING },
               toDate: { type: Type.STRING },
-              roomNumber: { type: Type.STRING },
             },
           },
         },

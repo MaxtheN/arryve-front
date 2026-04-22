@@ -15,20 +15,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
 
+// Narrowed for public demo: only flows that return effectively public info.
+// Destructive + PII-leaking flows are blocked here even if Gemini hallucinates
+// their names.
 const ALLOWED_FLOWS = new Set([
   'search-availability',
-  'search-by-phone',
-  'rate-details',
-  'read-folio',
   'lost-found-search',
-  'advanced-search',
 ]);
 
 const TOOL_TO_FLOW: Record<string, string> = {
   search_availability: 'search-availability',
-  search_by_phone: 'search-by-phone',
-  rate_details: 'rate-details',
-  read_folio: 'read-folio',
   lost_found_search: 'lost-found-search',
 };
 
