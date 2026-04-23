@@ -1,7 +1,7 @@
 // AudioWorklet processor — downmixes mic input to mono Float32 and posts
 // fixed-size chunks back to the main thread. Main thread resamples to 16kHz
 // and ships to the local voice agent WebSocket.
-class GeminiMicProcessor extends AudioWorkletProcessor {
+class ArryveMicProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this._frameSize = (options && options.processorOptions && options.processorOptions.frameSize) || 2048;
@@ -28,4 +28,4 @@ class GeminiMicProcessor extends AudioWorkletProcessor {
     return true;
   }
 }
-registerProcessor('gemini-mic', GeminiMicProcessor);
+registerProcessor('arryve-mic', ArryveMicProcessor);

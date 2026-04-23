@@ -32,6 +32,9 @@ export type DemoEventType =
   | 'first_audio'
   | 'transcript'
   | 'tool_call'
+  | 'client_tool_call'
+  | 'audio_level'
+  | 'playback_queue_depth'
   | 'error'
   | 'ended';
 

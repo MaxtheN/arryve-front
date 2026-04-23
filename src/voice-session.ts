@@ -63,6 +63,12 @@ export class VoiceSession {
   private endReason: 'model-ended' | 'user-stopped' | 'server-closed' | null = null;
   private callbacks: VoiceCallbacks;
   private config: VoiceConfig;
+  // Rolling mic frame stats — folded into a periodic audio_level event so
+  // we can correlate browser mic health with server-side STT WER.
+  private micPeak = 0;
+  private micRmsSq = 0;
+  private micRmsN = 0;
+  private telemetryTimer: number | null = null;
 
   constructor(config: VoiceConfig, callbacks: VoiceCallbacks = {}) {
     if (!config.url) throw new Error('VoiceSession: url is required');
@@ -154,12 +160,25 @@ export class VoiceSession {
   private startMicPump() {
     if (!this.audioCtx || !this.micStream) return;
     this.micSource = this.audioCtx.createMediaStreamSource(this.micStream);
-    this.micNode = new AudioWorkletNode(this.audioCtx, 'gemini-mic', {
+    this.micNode = new AudioWorkletNode(this.audioCtx, 'arryve-mic', {
       processorOptions: { frameSize: MIC_FRAME_SIZE },
     });
     this.micNode.port.onmessage = (ev: MessageEvent<ArrayBuffer>) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
       const float32 = new Float32Array(ev.data);
+      // Fold this frame into the rolling peak/rms accumulator so the
+      // next audio_level tick has coverage.
+      let peak = 0;
+      let sumSq = 0;
+      for (let i = 0; i < float32.length; i++) {
+        const v = float32[i];
+        const abs = Math.abs(v);
+        if (abs > peak) peak = abs;
+        sumSq += v * v;
+      }
+      if (peak > this.micPeak) this.micPeak = peak;
+      this.micRmsSq += sumSq;
+      this.micRmsN += float32.length;
       const resampled = resampleLinear(
         float32,
         this.audioCtx!.sampleRate,
@@ -173,6 +192,45 @@ export class VoiceSession {
     const sink = this.audioCtx.createGain();
     sink.gain.value = 0;
     this.micNode.connect(sink).connect(this.audioCtx.destination);
+    this.startTelemetryTicker();
+  }
+
+  private startTelemetryTicker() {
+    if (this.telemetryTimer !== null) return;
+    this.telemetryTimer = window.setInterval(() => {
+      // audio_level — rolling over the last 500 ms of mic frames
+      if (this.micRmsN > 0) {
+        const rms = Math.sqrt(this.micRmsSq / this.micRmsN);
+        logDemoEvent('audio_level', {
+          status: this.status,
+          peak: Number(this.micPeak.toFixed(4)),
+          rms: Number(rms.toFixed(4)),
+          samples: this.micRmsN,
+        });
+        this.micPeak = 0;
+        this.micRmsSq = 0;
+        this.micRmsN = 0;
+      }
+      // playback_queue_depth — buffered bot audio in milliseconds.
+      if (this.playbackCtx && this.scheduledSources.size > 0) {
+        const depthMs = Math.max(
+          0,
+          (this.playbackQueueEndsAt - this.playbackCtx.currentTime) * 1000
+        );
+        logDemoEvent('playback_queue_depth', {
+          status: this.status,
+          depth_ms: Math.round(depthMs),
+          scheduled: this.scheduledSources.size,
+        });
+      }
+    }, 500);
+  }
+
+  private stopTelemetryTicker() {
+    if (this.telemetryTimer !== null) {
+      clearInterval(this.telemetryTimer);
+      this.telemetryTimer = null;
+    }
   }
 
   private handleServerMessage(raw: string | ArrayBuffer) {
@@ -220,6 +278,7 @@ export class VoiceSession {
         this.clearPlayback();
         break;
       case 'end':
+        logDemoEvent('client_tool_call', { name: 'end_call' });
         this.endReason = 'model-ended';
         this.endAfterPlaybackDrains();
         break;
@@ -292,6 +351,7 @@ export class VoiceSession {
   }
 
   private async cleanup() {
+    this.stopTelemetryTicker();
     try {
       this.ws?.close();
     } catch {
