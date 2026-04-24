@@ -148,9 +148,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           config: {
             responseModalities: [Modality.AUDIO],
             systemInstruction: SYSTEM_INSTRUCTION,
-            // Language pinning is Vertex-only — the Gemini Live API ignores
-            // speechConfig.languageCode and AudioTranscriptionConfig.languageCodes,
-            // so we enforce English purely through the system prompt.
+            // Language pinning is Vertex-only — Gemini Live ignores
+            // speechConfig.languageCode and AudioTranscriptionConfig.languageCodes.
+            // Language policy lives in the system prompt: Arvy mirrors the
+            // guest's language (multilingual).
             speechConfig: {
               voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } },
             },
