@@ -497,6 +497,8 @@ function toolUnavailablePayload(toolName: string): {
       ? 'live availability'
       : toolName === 'lost_found_search'
       ? 'lost-and-found'
+      : toolName === 'lookup_loyalty_member'
+      ? 'IHG One Rewards lookup'
       : 'booking';
   return {
     ok: false,

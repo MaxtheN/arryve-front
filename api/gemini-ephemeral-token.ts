@@ -67,6 +67,22 @@ function safeTools(toolsEnabled: boolean) {
           },
         },
         {
+          name: 'lookup_loyalty_member',
+          description:
+            'Verify a guest-provided IHG One Rewards membership number against the property PMS. Call this EVERY time a guest claims to be an IHG member — never just take their word for it. Returns tier (Club/Silver/Gold/Platinum/Diamond), member name, and email on a match, or status="not-found" / "invalid-number" if the number is wrong.',
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              membershipNumber: {
+                type: Type.STRING,
+                description:
+                  'IHG One Rewards account number as spoken by the guest, digits only — strip spaces, dashes, and any "number" prefix. 6–16 digits expected.',
+              },
+            },
+            required: ['membershipNumber'],
+          },
+        },
+        {
           name: 'lost_found_search',
           description:
             'Search the Lost & Found dashboard by date range or keyword. Returns item descriptions — no guest PII.',

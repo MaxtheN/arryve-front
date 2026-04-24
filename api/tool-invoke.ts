@@ -21,11 +21,13 @@ import crypto from 'node:crypto';
 const ALLOWED_FLOWS = new Set([
   'search-availability',
   'lost-found-search',
+  'lookup-loyalty',
 ]);
 
 const TOOL_TO_FLOW: Record<string, string> = {
   search_availability: 'search-availability',
   lost_found_search: 'lost-found-search',
+  lookup_loyalty_member: 'lookup-loyalty',
 };
 
 function requireEnv(name: string): string {
