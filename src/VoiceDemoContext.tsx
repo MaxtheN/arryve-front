@@ -1,10 +1,8 @@
 /**
- * Shared voice-session state — consumed by the hero CTA and the
- * TryACall section so both drive a single conversation.
- *
- * Backed by VoiceSession (WebSocket to api.tryarryve.com/voice) which
- * talks to our local Pipecat pipeline on the A100 (Whisper + Qwen3.5 +
- * Kokoro + HK tool dispatch in-process).
+ * Shared Gemini Live session state — consumed by both the hero "Hear Arvy
+ * answer" button and the main `<GeminiLiveDemo />` panel in the TryACall
+ * section so they drive a single conversation (can't have one running in
+ * two places).
  */
 
 import React, {
@@ -17,20 +15,22 @@ import React, {
 } from 'react';
 
 import {
-  VoiceSession,
-  type VoiceStatus,
-} from './voice-session';
+  GeminiLiveSession,
+  type GeminiLiveStatus,
+} from './gemini-live';
 import { logDemoEvent, newSessionId } from './demo-log';
 
 export type TranscriptEntry = { id: number; role: 'user' | 'model'; text: string };
 
-// Local voice agent WS URL. Override in dev with VITE_VOICE_WS_URL=ws://localhost:4647/voice
-const DEFAULT_VOICE_URL =
-  (import.meta.env.VITE_VOICE_WS_URL as string | undefined) ??
-  'wss://api.tryarryve.com/voice';
+interface EphemeralTokenResponse {
+  token: string;
+  model: string;
+  expiresAt: string;
+  toolsEnabled?: boolean;
+}
 
 interface VoiceDemoValue {
-  status: VoiceStatus;
+  status: GeminiLiveStatus;
   transcripts: TranscriptEntry[];
   firstAudioMs: number | null;
   turnIndex: number;
@@ -45,19 +45,18 @@ interface VoiceDemoValue {
 const VoiceDemoCtx = createContext<VoiceDemoValue | null>(null);
 
 export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<VoiceStatus>('idle');
+  const [status, setStatus] = useState<GeminiLiveStatus>('idle');
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
   const [firstAudioMs, setFirstAudioMs] = useState<number | null>(null);
   const [turnIndex, setTurnIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [endedReason, setEndedReason] = useState<string | null>(null);
-  // Fingerprint lockout disabled during testing. See git history for the
-  // original check if we want to re-enable.
+  const [toolsEnabled, setToolsEnabled] = useState(false);
+  // Single-try lockout is disabled during the testing window. Re-enable
+  // by restoring the fingerprint-based check in this provider (see git
+  // history) when we're ready to cap repeat demos again.
   const demoLocked = false;
-  // Tools are always available on the local stack now — the server has
-  // in-process handlers for availability, lost-and-found, KB lookup, end_call.
-  const toolsEnabled = true;
-  const sessionRef = useRef<VoiceSession | null>(null);
+  const sessionRef = useRef<GeminiLiveSession | null>(null);
   const nextId = useRef(0);
 
   useEffect(() => {
@@ -96,11 +95,37 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
     logDemoEvent('session_start', {
       ua: navigator.userAgent,
       lang: navigator.language,
-      stack: 'local-pipecat',
     });
-
-    const session = new VoiceSession(
-      { url: DEFAULT_VOICE_URL },
+    const t0 = performance.now();
+    let minted: EphemeralTokenResponse;
+    try {
+      const resp = await fetch('/api/gemini-ephemeral-token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        throw new Error(body.error || `token mint failed (${resp.status})`);
+      }
+      minted = (await resp.json()) as EphemeralTokenResponse;
+      const mintMs = Math.round(performance.now() - t0);
+      // eslint-disable-next-line no-console
+      console.log(`[arryve-demo] token mint ${mintMs} ms`);
+      logDemoEvent('token_minted', {
+        ms: mintMs,
+        toolsEnabled: minted.toolsEnabled ?? false,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatus('error');
+      setError(msg);
+      logDemoEvent('token_error', { error: msg, ms: Math.round(performance.now() - t0) });
+      return;
+    }
+    setToolsEnabled(Boolean(minted.toolsEnabled));
+    const session = new GeminiLiveSession(
+      { token: minted.token, model: minted.model },
       {
         onStatus: setStatus,
         onFirstAudio: (ms) => {
@@ -113,7 +138,7 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
           logDemoEvent('transcript', { role, text });
         },
         onTurnStart: () => setFirstAudioMs(null),
-        onTurnEnd: () => setTurnIndex((n) => n + 1),
+        onTurnEnd: (idx) => setTurnIndex(idx),
         onError: (err) => {
           const msg = err.message || String(err);
           setError(msg);
@@ -129,7 +154,6 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
     sessionRef.current = session;
     try {
       await session.start();
-      void sid; // sid is inside logDemoEvent via getSessionId()
     } catch {
       sessionRef.current = null;
     }

@@ -1,12 +1,12 @@
 import { Mic, MicOff, Sparkles } from 'lucide-react';
 import { useVoiceDemo } from './VoiceDemoContext';
-import type { VoiceStatus } from './voice-session';
+import type { GeminiLiveStatus } from './gemini-live';
 
-/* Voice-to-voice demo panel. The session is owned by VoiceDemoContext so
-   the hero CTA and this panel stay in sync — only one conversation can be
-   active at a time. */
+/* Voice-to-voice demo panel. The actual session is owned by VoiceDemoContext
+   so the hero CTA and this panel stay in sync — only one conversation can
+   be active at a time. */
 
-const STATUS_LABEL: Record<VoiceStatus, string> = {
+const STATUS_LABEL: Record<GeminiLiveStatus, string> = {
   idle: 'Idle',
   connecting: 'Connecting',
   listening: 'Listening',
@@ -14,7 +14,7 @@ const STATUS_LABEL: Record<VoiceStatus, string> = {
   error: 'Error',
 };
 
-const STATUS_DOT: Record<VoiceStatus, string> = {
+const STATUS_DOT: Record<GeminiLiveStatus, string> = {
   idle: 'bg-forest-950/30',
   connecting: 'bg-amber-500 animate-pulse',
   listening: 'bg-forest-900',
@@ -48,7 +48,7 @@ export function GeminiLiveDemo() {
         </div>
         <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-forest-950/50 font-medium">
           <Sparkles className="w-3 h-3" />
-          Arryve voice · {toolsEnabled ? 'grounded' : 'local'}
+          Gemini Live{toolsEnabled ? ' · grounded' : ''}
         </div>
       </div>
 
