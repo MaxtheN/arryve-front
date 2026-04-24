@@ -43,7 +43,7 @@ function safeTools(toolsEnabled: boolean) {
         topic: {
           type: Type.STRING,
           description:
-            "Topic slug. Valid: identity, rooms, in_room_amenities, brand_amenities, breakfast, wifi, pool, fitness, business_center, parking, ev_charging, check_in_out, late_checkout, cancellation, smoking, pets, id_requirements, deposit, taxes, accessibility, dining, attractions, logistics, ihg_rewards, index.",
+            "Topic slug. Valid: identity, rooms, in_room_amenities, brand_amenities, breakfast, wifi, pool, fitness, business_center, parking, ev_charging, check_in_out, late_checkout, cancellation, smoking, pets, id_requirements, deposit, taxes, accessibility, dining, attractions, logistics, ihg_rewards, quiet_hours, enrollment_url, index.",
         },
       },
       required: ['topic'],

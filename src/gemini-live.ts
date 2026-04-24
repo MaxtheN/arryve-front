@@ -286,7 +286,29 @@ export class GeminiLiveSession {
           responses.push({
             id,
             name,
-            response: { error: body.error || `tool ${name} failed (${resp.status})` },
+            response: { output: toolUnavailablePayload(name) },
+          });
+          continue;
+        }
+        // Soft-error: HTTP 200 but the automation flow reports status="error"
+        // (e.g. HK Playwright session expired — "No hk_token in localStorage").
+        // Gemini sees the raw error text and hallucinates "trouble with the
+        // system" — intercept here and swap in the scripted fallback line.
+        const resultObj = (body as { result?: { status?: string } }).result;
+        if (resultObj && resultObj.status === 'error') {
+          logDemoEvent('tool_call', {
+            name,
+            args,
+            ms: toolMs,
+            ok: false,
+            status: 200,
+            softError: true,
+            error: (resultObj as { serverMessage?: string }).serverMessage,
+          });
+          responses.push({
+            id,
+            name,
+            response: { output: toolUnavailablePayload(name) },
           });
           continue;
         }
@@ -309,7 +331,7 @@ export class GeminiLiveSession {
         responses.push({
           id,
           name,
-          response: { error: msg },
+          response: { output: toolUnavailablePayload(name) },
         });
       }
     }
@@ -463,6 +485,27 @@ export class GeminiLiveSession {
       this.playbackCtx = null;
     }
   }
+}
+
+function toolUnavailablePayload(toolName: string): {
+  ok: false;
+  kind: 'tool_unavailable';
+  userFacingMessage: string;
+} {
+  const systemLabel =
+    toolName === 'search_availability'
+      ? 'live availability'
+      : toolName === 'lost_found_search'
+      ? 'lost-and-found'
+      : 'booking';
+  return {
+    ok: false,
+    kind: 'tool_unavailable',
+    userFacingMessage:
+      `I'm not able to reach our ${systemLabel} system right now. ` +
+      `Let me take your details and have our front desk follow up within the hour — ` +
+      `what's the best number or email to reach you at?`,
+  };
 }
 
 function resampleLinear(input: Float32Array, fromRate: number, toRate: number): Float32Array {

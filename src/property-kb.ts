@@ -9,7 +9,7 @@
 
 export const KB_SECTIONS: Record<string, string> = {
   index:
-    'Available topics: identity, rooms, in_room_amenities, brand_amenities, breakfast, wifi, pool, fitness, business_center, parking, ev_charging, check_in_out, late_checkout, cancellation, smoking, pets, id_requirements, deposit, taxes, accessibility, dining, attractions, logistics, ihg_rewards.',
+    'Available topics: identity, rooms, in_room_amenities, brand_amenities, breakfast, wifi, pool, fitness, business_center, parking, ev_charging, check_in_out, late_checkout, cancellation, smoking, pets, id_requirements, deposit, taxes, accessibility, dining, attractions, logistics, ihg_rewards, quiet_hours, enrollment_url.',
 
   identity:
     'Holiday Inn Express Red Bank, Cincinnati OH (Hamilton County). IHG select-service, 100% non-smoking. Timezone America/New_York (Eastern). Tax rate 17% (Ohio state + Hamilton County + transient occupancy).',
@@ -79,6 +79,10 @@ export const KB_SECTIONS: Record<string, string> = {
 
   ihg_rewards:
     'IHG One Rewards is free to join. Members earn points on direct stays and get access to the member rate (usually 5-10% below BAR). Gold and higher: upgrade subject to availability. Platinum/Diamond: guaranteed 4 PM late check-out, bottled water, guaranteed room availability.',
+
+  quiet_hours: 'Standard quiet hours are 10:00 PM to 7:00 AM.',
+
+  enrollment_url: 'IHG One Rewards enrollment: https://www.ihg.com/one-rewards/join',
 };
 
 export function lookupPropertyInfo(topic: string): string {
