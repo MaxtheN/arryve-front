@@ -164,8 +164,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               automaticActivityDetection: {
                 startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW,
                 endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-                prefixPaddingMs: 300,
-                silenceDurationMs: 800,
+                // Require ~700 ms of lead-in speech before committing to a
+                // barge-in — tames false interruption from ambient noise,
+                // keyboards, distant voices.
+                prefixPaddingMs: 700,
+                // Require 1200 ms of trailing silence before treating the
+                // guest's turn as finished. Lets them pause to think
+                // without Arvy cutting in.
+                silenceDurationMs: 1200,
               },
             },
           },
