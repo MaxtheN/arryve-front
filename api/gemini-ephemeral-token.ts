@@ -21,7 +21,7 @@ import {
   Type,
 } from '@google/genai';
 
-import SYSTEM_INSTRUCTION from './_arvy-prompt.js';
+import { buildSystemPrompt } from './_arvy-prompt.js';
 
 const MODEL = 'gemini-3.1-flash-live-preview';
 const TOKEN_USES = 1;
@@ -163,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           model: MODEL,
           config: {
             responseModalities: [Modality.AUDIO],
-            systemInstruction: SYSTEM_INSTRUCTION,
+            systemInstruction: buildSystemPrompt(),
             // Language pinning is Vertex-only — Gemini Live ignores
             // speechConfig.languageCode and AudioTranscriptionConfig.languageCodes.
             // Language policy lives in the system prompt: Arvy mirrors the

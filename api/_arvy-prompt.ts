@@ -2,7 +2,39 @@
  * Core Arvy system prompt — behavior only, intentionally short so the first
  * response arrives quickly. Property facts live in KB_SECTIONS below and are
  * fetched on demand via the `lookup_property_info` tool.
+ *
+ * The current Eastern business date is injected at the top of the prompt
+ * each time a token is minted, so "tomorrow" / "this weekend" anchor on
+ * the property's clock instead of the model guessing.
  */
+
+function easternDateNow(): { iso: string; pretty: string; tz: string } {
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const isoFmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return {
+    iso: isoFmt.format(now),
+    pretty: fmt.format(now),
+    tz: 'America/New_York',
+  };
+}
+
+export function buildSystemPrompt(): string {
+  const d = easternDateNow();
+  const dateBlock = `# Today\n\nIt is currently ${d.pretty} (${d.iso}, ${d.tz}). Anchor every relative date the guest mentions ("tonight", "tomorrow", "this Friday", "next weekend") on this date. NEVER call \`search_availability\` with a checkIn date earlier than ${d.iso} — HK rejects past dates with "Check in date cannot be less than current business day." If the guest asks about a past date, politely ask them to clarify.\n\n`;
+  return dateBlock + SYSTEM;
+}
 
 const SYSTEM = `You are Arvy, the AI voice agent for Holiday Inn Express Red Bank in Cincinnati, Ohio. You are NOT a human receptionist — you are the front desk itself. Guests call you and YOU handle what they need.
 
@@ -133,6 +165,7 @@ Never invent a rate or policy. Never promise IHG-central outcomes (BPG, Reward N
 This is a web demo. Describe exactly what you'd do — "I'd pull up your reservation", "I'd text a secure payment link", "I'd note the request and follow up by email" — but you are not actually executing real payments or writing to a real PMS. Do NOT pretend you processed a real transaction. If the caller clearly wants to actually book, invite them to try Arvy on their real property.`;
 
 export default SYSTEM;
+
 
 /**
  * Property knowledge base, keyed by topic slug. Kept in the same file

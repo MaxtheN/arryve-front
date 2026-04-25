@@ -76,6 +76,14 @@ export class GeminiLiveSession {
   private config: GeminiLiveConfig;
   private recorder: Recorder = new Recorder();
   private status: GeminiLiveStatus = 'idle';
+  // Gemini Live ships the model's outputTranscription as many small
+  // token-fragments. Buffer them so we emit ONE transcript event per
+  // Arvy utterance (flushed on turnComplete, when the user starts
+  // speaking, or after a short idle). UX downstream (dashboard list,
+  // detail bubbles, "turns" count) becomes meaningful.
+  private modelTextBuf = '';
+  private modelFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private modelFlushIdleMs = 1200;
   private turnStartedAt: number | null = null;
   private waitingForFirstAudio = false;
   private completedTurns = 0;
@@ -200,11 +208,23 @@ export class GeminiLiveSession {
   async stop(): Promise<void> {
     const reason = this.endReason ?? 'user-stopped';
     this.recorder.stop();
+    // Flush any buffered model-text fragments before tearing down.
+    this.flushModelBuffer();
     const recording = this.recorder.finalize();
     await this.cleanup();
     this.setStatus('idle');
     this.callbacks.onEnded?.(reason);
-    if (recording) void uploadRecording(recording.wav, recording.durationMs, reason, this.completedTurns);
+    // AWAIT the upload — fire-and-forget + keepalive only works for ≤64 KB
+    // bodies in Chrome, but a 30-s stereo WAV is ~3 MB, so the upload was
+    // being cancelled mid-flight. The user is on the post-call panel by
+    // now; a couple seconds of upload time is fine.
+    if (recording) {
+      try {
+        await uploadRecording(recording.wav, recording.durationMs, reason, this.completedTurns);
+      } catch {
+        /* network error — Postgres still has transcript+tool-calls */
+      }
+    }
   }
 
   private startMicPump() {
@@ -361,10 +381,23 @@ export class GeminiLiveSession {
 
     // inputTranscription: what Gemini heard from the user.
     const input = msg.serverContent?.inputTranscription?.text;
-    if (input) this.callbacks.onTranscript?.('user', input);
-    // outputTranscription: what Gemini said.
+    if (input) {
+      // User started speaking — flush any pending model fragments first
+      // so the conversation order is preserved.
+      this.flushModelBuffer();
+      this.callbacks.onTranscript?.('user', input);
+    }
+    // outputTranscription: token-level fragments. Buffer + flush on
+    // turnComplete / user speech / idle.
     const output = msg.serverContent?.outputTranscription?.text;
-    if (output) this.callbacks.onTranscript?.('model', output);
+    if (output) {
+      this.modelTextBuf += output;
+      if (this.modelFlushTimer) clearTimeout(this.modelFlushTimer);
+      this.modelFlushTimer = setTimeout(
+        () => this.flushModelBuffer(),
+        this.modelFlushIdleMs
+      );
+    }
 
     // Audio chunks come on serverContent.modelTurn.parts[*].inlineData.
     const parts = msg.serverContent?.modelTurn?.parts ?? [];
@@ -388,12 +421,23 @@ export class GeminiLiveSession {
 
     // turnComplete: model finished speaking; flip to listening.
     if (msg.serverContent?.turnComplete) {
+      this.flushModelBuffer();
       this.completedTurns += 1;
       this.callbacks.onTurnEnd?.(this.completedTurns);
       this.turnStartedAt = performance.now();
       this.waitingForFirstAudio = true;
       this.setStatus('listening');
     }
+  }
+
+  private flushModelBuffer(): void {
+    if (this.modelFlushTimer) {
+      clearTimeout(this.modelFlushTimer);
+      this.modelFlushTimer = null;
+    }
+    const buf = this.modelTextBuf.trim();
+    this.modelTextBuf = '';
+    if (buf) this.callbacks.onTranscript?.('model', buf);
   }
 
   private endAfterPlaybackDrains() {
