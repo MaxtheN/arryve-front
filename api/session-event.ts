@@ -66,21 +66,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const json = JSON.stringify(payload);
     const { ts, sig, url } = signRequest(pathSuffix, json);
-    // Don't await beyond a short timeout — keep the route fast.
+    // Must await — Vercel kills the lambda the moment we return, so a
+    // fire-and-forget fetch never reaches Caddy and the dashboard stays empty.
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 4000);
-    fetch(url, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-arryve-ts': ts,
-        'x-arryve-signature': sig,
-      },
-      body: json,
-      signal: ctrl.signal,
-    }).catch(() => undefined).finally(() => clearTimeout(t));
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-arryve-ts': ts,
+          'x-arryve-signature': sig,
+        },
+        body: json,
+        signal: ctrl.signal,
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        // eslint-disable-next-line no-console
+        console.warn('[session-event] upstream', r.status, pathSuffix, txt.slice(0, 200));
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[session-event] fetch failed', pathSuffix, (err as Error).message);
+    } finally {
+      clearTimeout(t);
+    }
     return res.status(204).end();
-  } catch {
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[session-event] handler error', (err as Error).message);
     return res.status(204).end();
   }
 }

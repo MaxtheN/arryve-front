@@ -184,11 +184,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // Require ~700 ms of lead-in speech before committing to a
                 // barge-in — tames false interruption from ambient noise,
                 // keyboards, distant voices.
-                prefixPaddingMs: 700,
-                // Require 1200 ms of trailing silence before treating the
-                // guest's turn as finished. Lets them pause to think
-                // without Arvy cutting in.
-                silenceDurationMs: 1200,
+                prefixPaddingMs: 400,
+                // Trailing silence before treating the guest's turn as
+                // finished. Lower = snappier replies. 700 ms still tolerates
+                // brief mid-utterance pauses without Arvy cutting in.
+                silenceDurationMs: 700,
               },
             },
           },
