@@ -1,6 +1,7 @@
 import { Mic, MicOff, Sparkles } from 'lucide-react';
 import { useVoiceDemo } from './VoiceDemoContext';
 import type { GeminiLiveStatus } from './gemini-live';
+import { logCtaClick } from './demo-log';
 
 /* Voice-to-voice demo panel. The actual session is owned by VoiceDemoContext
    so the hero CTA and this panel stay in sync — only one conversation can
@@ -101,7 +102,7 @@ export function GeminiLiveDemo() {
         {isActive ? (
           <button
             type="button"
-            onClick={stop}
+            onClick={() => { logCtaClick('demo_stop', { placement: 'demo_panel' }); void stop(); }}
             className="inline-flex items-center gap-2 bg-forest-950 text-ivory-50 px-4 py-2.5 rounded-full text-sm font-medium hover:bg-forest-900 transition-colors"
           >
             <MicOff className="w-3.5 h-3.5" />
@@ -110,7 +111,7 @@ export function GeminiLiveDemo() {
         ) : (
           <button
             type="button"
-            onClick={start}
+            onClick={() => { logCtaClick('demo_start', { placement: 'demo_panel' }); void start(); }}
             disabled={demoLocked}
             className="inline-flex items-center gap-2 bg-forest-950 text-ivory-50 px-4 py-2.5 rounded-full text-sm font-medium hover:bg-forest-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >

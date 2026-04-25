@@ -6,6 +6,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { playArvyVoice, speakArvy, stopArvyVoice, VOICES } from './voice';
 import { GeminiLiveDemo } from './GeminiLiveDemo';
 import { useVoiceDemo } from './VoiceDemoContext';
+import { logCtaClick } from './demo-log';
 
 /* ─── Shared: speech helper ─── */
 
@@ -240,6 +241,7 @@ function Navbar() {
             href={BOOK_DEMO_URL}
             target="_blank"
             rel="noreferrer"
+            onClick={() => logCtaClick('book_demo', { placement: 'top_nav' })}
             className={`hidden md:inline-flex px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
               scrolled
                 ? "bg-forest-950 text-ivory-50 hover:bg-forest-900"
@@ -252,7 +254,7 @@ function Navbar() {
           {/* Mobile hamburger */}
           <button
             type="button"
-            onClick={() => setMenuOpen(true)}
+            onClick={() => { logCtaClick('mobile_menu_open'); setMenuOpen(true); }}
             aria-label="Open menu"
             aria-expanded={menuOpen}
             className={`md:hidden inline-flex items-center justify-center h-11 w-11 rounded-full transition-colors ${
@@ -304,7 +306,7 @@ function Navbar() {
             href={BOOK_DEMO_URL}
             target="_blank"
             rel="noreferrer"
-            onClick={() => setMenuOpen(false)}
+            onClick={() => { logCtaClick('book_demo', { placement: 'mobile_menu' }); setMenuOpen(false); }}
             className="flex items-center justify-center gap-2 bg-ivory-50 text-forest-950 py-4 rounded-full text-base font-medium hover:bg-white transition-colors"
           >
             Book a Demo
@@ -334,15 +336,18 @@ function HeroSection() {
 
   const handleHearArvy = async () => {
     if (demoActive) {
+      logCtaClick('demo_stop', { placement: 'hero' });
       await stopVoiceDemo();
       return;
     }
     if (demoLocked) {
       // Their browser already consumed the demo — scroll to the panel so
       // they see the "book a pilot" CTA rather than silently doing nothing.
+      logCtaClick('demo_start', { placement: 'hero', state: 'locked' });
       document.getElementById('try-a-call')?.scrollIntoView({ behavior: 'smooth' });
       return;
     }
+    logCtaClick('demo_start', { placement: 'hero' });
     await startVoiceDemo();
     // Pull the transcript panel into view so the visitor sees Arvy's
     // replies alongside the conversation.
@@ -403,6 +408,7 @@ function HeroSection() {
                   href={BOOK_DEMO_URL}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => logCtaClick('book_demo', { placement: 'hero' })}
                   className="inline-flex items-center gap-2 bg-ivory-50 text-forest-950 px-6 py-3 rounded-full text-sm font-medium hover:bg-white transition-colors group"
                 >
                   Book a demo
@@ -1185,7 +1191,7 @@ function IntegrationsSection() {
                   type="button"
                   onMouseEnter={() => setActivePMS(t)}
                   onFocus={() => setActivePMS(t)}
-                  onClick={() => setActivePMS(t)}
+                  onClick={() => { logCtaClick('pms_select', { pms: t }); setActivePMS(t); }}
                   className={`h-24 md:h-28 flex items-center justify-center px-4 transition-all duration-300 relative ${
                     active ? "bg-white" : "bg-ivory-100 hover:bg-ivory-50"
                   }`}
@@ -1628,7 +1634,10 @@ function FAQItem({ question, answer, delay }: { key?: React.Key, question: strin
   return (
     <FadeIn delay={delay}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) logCtaClick('faq_open', { question: question.slice(0, 60) });
+          setIsOpen(!isOpen);
+        }}
         className="w-full py-5 md:py-6 flex items-start justify-between text-left focus:outline-none group"
       >
         <span className="font-serif text-lg md:text-xl text-forest-950 pr-6 leading-snug text-pretty group-hover:text-forest-900 transition-colors">
@@ -1712,6 +1721,7 @@ function BookDemoSection() {
                 href={BOOK_DEMO_URL}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => logCtaClick('book_demo', { placement: 'book_demo_section' })}
                 className="w-full bg-ivory-50 text-forest-950 py-3.5 rounded-full text-sm font-medium hover:bg-white transition-colors inline-flex items-center justify-center gap-2 group"
               >
                 Schedule in Google Calendar
@@ -1719,6 +1729,7 @@ function BookDemoSection() {
               </a>
               <a
                 href={MAILTO_CONTACT_URL}
+                onClick={() => logCtaClick('email_contact', { placement: 'book_demo_section' })}
                 className="w-full rounded-full border border-ivory-50/15 bg-ivory-50/[0.02] py-3.5 px-5 text-sm text-ivory-50/85 hover:bg-ivory-50/[0.06] hover:text-white transition-colors inline-flex items-center justify-center"
               >
                 {CONTACT_EMAIL}
