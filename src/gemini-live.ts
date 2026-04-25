@@ -390,11 +390,49 @@ export class GeminiLiveSession {
 
   private endAfterPlaybackDrains() {
     this.detachMic();
-    const remainingMs =
-      this.playbackCtx && this.playbackQueueEndsAt > this.playbackCtx.currentTime
-        ? (this.playbackQueueEndsAt - this.playbackCtx.currentTime) * 1000
-        : 0;
-    setTimeout(() => void this.stop(), Math.max(250, remainingMs + 250));
+    // The original snapshot-then-setTimeout cut "have a great day" off at
+    // "have a grea—" because Gemini emits the end_call tool call *before*
+    // the last few audio chunks of the farewell arrive. We can't trust a
+    // one-shot drain estimate. Instead, poll until the playback queue has
+    // been idle for a full grace window (no new chunks scheduled), then
+    // stop. The grace also covers stragglers from a server message that
+    // hasn't arrived yet.
+    const TAIL_GRACE_MS = 1500;          // wait this long after the queue empties
+    const POLL_INTERVAL_MS = 150;
+    const MAX_WAIT_MS = 12_000;          // hard ceiling — never hang the session
+    const startedAt = performance.now();
+    let queueEmptySince: number | null = null;
+
+    const tick = () => {
+      if (!this.playbackCtx) {
+        void this.stop();
+        return;
+      }
+      const now = performance.now();
+      const queueRemainingMs = Math.max(
+        0,
+        (this.playbackQueueEndsAt - this.playbackCtx.currentTime) * 1000
+      );
+
+      if (queueRemainingMs > 0) {
+        // Still playing. Reset the empty-since timer; new audio may still
+        // be arriving from Gemini.
+        queueEmptySince = null;
+      } else if (queueEmptySince === null) {
+        queueEmptySince = now;
+      }
+
+      const idleFor = queueEmptySince === null ? 0 : now - queueEmptySince;
+      const totalWait = now - startedAt;
+
+      if (idleFor >= TAIL_GRACE_MS || totalWait >= MAX_WAIT_MS) {
+        void this.stop();
+        return;
+      }
+      setTimeout(tick, POLL_INTERVAL_MS);
+    };
+
+    setTimeout(tick, POLL_INTERVAL_MS);
   }
 
   private playAudioChunk(base64: string) {
