@@ -512,20 +512,25 @@ export class GeminiLiveSession {
     if (!this.playbackCtx) return;
     const pcm = base64ToPcm16(base64);
     const float32 = pcm16ToFloat(pcm);
-    // Tee to the recorder before scheduling. Float32 is already at 24 kHz.
-    this.recorder.pushBot(float32);
     const buffer = this.playbackCtx.createBuffer(1, float32.length, OUTPUT_RATE);
     buffer.copyToChannel(float32, 0);
     const source = this.playbackCtx.createBufferSource();
     source.buffer = buffer;
     source.connect(this.playbackCtx.destination);
-    const startAt = Math.max(this.playbackCtx.currentTime, this.playbackQueueEndsAt);
+    const audioNow = this.playbackCtx.currentTime;
+    const startAt = Math.max(audioNow, this.playbackQueueEndsAt);
     source.start(startAt);
     this.scheduledSources.add(source);
     source.addEventListener('ended', () => {
       this.scheduledSources.delete(source);
     });
     this.playbackQueueEndsAt = startAt + buffer.duration;
+    // Record the chunk at the wall-clock instant it will start playing
+    // (not the instant it arrived). Gemini bursts a whole turn's audio
+    // in a few hundred ms, so receive-time would mix every chunk on
+    // top of itself.
+    const playbackStartWallMs = performance.now() + (startAt - audioNow) * 1000;
+    this.recorder.pushBot(float32, playbackStartWallMs);
   }
 
   private clearPlayback() {

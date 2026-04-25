@@ -60,12 +60,19 @@ export class Recorder {
 
   /**
    * Push an Arvy audio chunk. Already at 24 kHz from Gemini Live.
-   * `at` is the wall-clock time the chunk was scheduled to start playing.
+   *
+   * `playbackStartMs` is the wall-clock instant the chunk will begin
+   * playing through Web Audio (NOT the moment it arrived from Gemini).
+   * Gemini ships an entire turn's audio as a tight burst over the
+   * websocket — using receive-time would stack every chunk of a turn
+   * at nearly the same offset and mix them into a garbled rush. The
+   * playback scheduler in gemini-live.ts already computes the right
+   * start instant via the AudioContext clock; we trust that here.
    */
-  pushBot(samples: Float32Array): void {
+  pushBot(samples: Float32Array, playbackStartMs: number): void {
     if (!this.active) return;
-    const at = performance.now() - this.startedAt;
-    if (at > MAX_DURATION_MS) return;
+    const at = playbackStartMs - this.startedAt;
+    if (at < 0 || at > MAX_DURATION_MS) return;
     this.bot.push({ at, samples });
   }
 
