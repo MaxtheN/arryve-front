@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // iOS Safari aggressively bfcaches whole pages, so a cached old
+      // bundle keeps running across deploys. Force a reload when the
+      // page is restored from the back/forward cache.
+      window.addEventListener('pageshow', function (e) {
+        if (e.persisted) window.location.reload();
+      });
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Arryve — AI Front Desk Assistant for Hotels</title>
     <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
