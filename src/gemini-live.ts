@@ -88,6 +88,8 @@ export class GeminiLiveSession {
   private waitingForFirstAudio = false;
   private completedTurns = 0;
   private endReason: 'model-ended' | 'user-stopped' | 'server-closed' | null = null;
+  private finalized = false;
+  private finalizePromise: Promise<void> | null = null;
 
   constructor(config: GeminiLiveConfig, callbacks: GeminiLiveCallbacks = {}) {
     if (!config.token) {
@@ -193,6 +195,12 @@ export class GeminiLiveSession {
                 this.endReason = 'server-closed';
                 this.callbacks.onEnded?.('server-closed');
               }
+              // The model-ended path closes the socket without anyone
+              // calling .stop(), which used to mean the WAV was never
+              // uploaded. Kick off the upload here too — finalizeOnce
+              // de-dupes so an explicit .stop() that arrives later
+              // simply awaits the same promise.
+              void this.finalizeOnce();
             }
           },
         },
@@ -206,25 +214,38 @@ export class GeminiLiveSession {
   }
 
   async stop(): Promise<void> {
-    const reason = this.endReason ?? 'user-stopped';
-    this.recorder.stop();
-    // Flush any buffered model-text fragments before tearing down.
-    this.flushModelBuffer();
-    const recording = this.recorder.finalize();
+    if (this.endReason === null) this.endReason = 'user-stopped';
+    const reason = this.endReason;
+    await this.finalizeOnce();
     await this.cleanup();
     this.setStatus('idle');
     this.callbacks.onEnded?.(reason);
-    // AWAIT the upload — fire-and-forget + keepalive only works for ≤64 KB
-    // bodies in Chrome, but a 30-s stereo WAV is ~3 MB, so the upload was
-    // being cancelled mid-flight. The user is on the post-call panel by
-    // now; a couple seconds of upload time is fine.
-    if (recording) {
-      try {
-        await uploadRecording(recording.wav, recording.durationMs, reason, this.completedTurns);
-      } catch {
-        /* network error — Postgres still has transcript+tool-calls */
-      }
+  }
+
+  /**
+   * Build the WAV and ship it once, regardless of which end-of-call
+   * path triggered us (user clicked End → stop(), Arvy hung up →
+   * onclose). Subsequent calls are coalesced onto the same promise so
+   * we never upload twice.
+   */
+  private finalizeOnce(): Promise<void> {
+    if (this.finalizePromise) return this.finalizePromise;
+    this.finalized = true;
+    this.recorder.stop();
+    this.flushModelBuffer();
+    const recording = this.recorder.finalize();
+    if (!recording) {
+      this.finalizePromise = Promise.resolve();
+      return this.finalizePromise;
     }
+    const reason = this.endReason ?? 'unknown';
+    this.finalizePromise = uploadRecording(
+      recording.wav,
+      recording.durationMs,
+      reason,
+      this.completedTurns
+    ).catch(() => undefined);
+    return this.finalizePromise;
   }
 
   private startMicPump() {
@@ -587,20 +608,60 @@ async function uploadRecording(
 ): Promise<void> {
   const sid = getSessionId();
   if (!sid) return;
+
+  // 1. Mint a short-lived signed URL on Vercel, then POST the WAV
+  //    directly to api.tryarryve.com. This bypasses Vercel's 4.5 MB
+  //    function-body limit, which long stereo recordings blow past.
+  let uploadUrl: string | null = null;
   try {
-    const fd = new FormData();
-    fd.append('audio', wav, `${sid}.wav`);
-    fd.append('duration_ms', String(durationMs));
-    fd.append('outcome', outcome);
-    fd.append('turns', String(turns));
-    fd.append('session_id', sid);
+    const tokenRes = await fetch('/api/session-upload-token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: sid }),
+    });
+    if (!tokenRes.ok) {
+      // eslint-disable-next-line no-console
+      console.warn('[uploadRecording] token mint failed', tokenRes.status);
+    } else {
+      const tok = (await tokenRes.json()) as { url?: string };
+      uploadUrl = tok.url ?? null;
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[uploadRecording] token fetch error', (err as Error).message);
+  }
+
+  if (uploadUrl) {
+    try {
+      const fd = new FormData();
+      fd.append('audio', wav, `${sid}.wav`);
+      fd.append('duration_ms', String(durationMs));
+      const audioRes = await fetch(uploadUrl, { method: 'POST', body: fd });
+      if (!audioRes.ok) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[uploadRecording] audio non-OK',
+          audioRes.status,
+          await audioRes.text().catch(() => '')
+        );
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[uploadRecording] audio upload failed', (err as Error).message);
+    }
+  }
+
+  // 2. Close the session row regardless of whether the audio made it.
+  //    Transcript + tool-call data still has value on its own.
+  try {
     await fetch('/api/session-finalize', {
       method: 'POST',
-      body: fd,
-      keepalive: true,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: sid, outcome, turns }),
     });
-  } catch {
-    /* fire-and-forget */
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[uploadRecording] finalize failed', (err as Error).message);
   }
 }
 

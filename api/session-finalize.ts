@@ -1,98 +1,53 @@
 /**
- * Session finalize proxy: receives the stereo WAV from the browser,
- * forwards it (signed) to the dashboard-api on the A100, then issues
- * the finalize call so the session row gets its outcome + duration.
- *
- * Multipart form fields expected:
- *   audio        — File (WAV)
- *   session_id   — uuid
- *   duration_ms  — integer ms
- *   outcome      — model-ended | user-stopped | server-closed | error
- *   turns        — completed turns count
+ * Closes a session row: posts the outcome + turn count to
+ * dashboard-api. JSON only — the WAV upload now goes browser→A100
+ * directly via /api/session-upload-token, bypassing Vercel's
+ * 4.5 MB function body cap.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { signRequest, DASHBOARD_BASE } from './_dashboard-sign.js';
+import { signRequest } from './_dashboard-sign.js';
 
-export const config = {
-  api: { bodyParser: false }, // multipart — we forward the raw stream
-};
-
-async function readRawBody(req: VercelRequest): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : (chunk as Buffer));
-  }
-  return Buffer.concat(chunks);
-}
-
-function pickField(body: Buffer, contentType: string, fieldName: string): string | undefined {
-  // Cheap form parse — we only need the small string fields.
-  // Boundary lookup.
-  const boundaryMatch = /boundary=([^;]+)/i.exec(contentType);
-  if (!boundaryMatch) return undefined;
-  const boundary = `--${boundaryMatch[1]}`;
-  const text = body.toString('latin1');
-  const parts = text.split(boundary);
-  for (const part of parts) {
-    const headerEnd = part.indexOf('\r\n\r\n');
-    if (headerEnd < 0) continue;
-    const headers = part.slice(0, headerEnd);
-    if (!headers.toLowerCase().includes(`name="${fieldName.toLowerCase()}"`)) continue;
-    if (headers.toLowerCase().includes('filename=')) continue; // skip file fields
-    const value = part.slice(headerEnd + 4).replace(/\r\n--$/, '').replace(/\r\n$/, '');
-    return value.trim();
-  }
-  return undefined;
+interface Body {
+  sessionId: string;
+  outcome?: string | null;
+  turns?: number | null;
+  ttfb_ms?: number | null;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-  const ct = (req.headers['content-type'] as string) ?? '';
-  if (!ct.startsWith('multipart/form-data')) {
-    return res.status(400).json({ error: 'expected multipart/form-data' });
-  }
   try {
-    const body = await readRawBody(req);
-    const sessionId = pickField(body, ct, 'session_id') ?? '';
-    const durationMs = Number(pickField(body, ct, 'duration_ms') ?? 0) || null;
-    const outcome = pickField(body, ct, 'outcome') ?? null;
-    const turns = Number(pickField(body, ct, 'turns') ?? 0) || null;
-    if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return res.status(400).json({ error: 'bad session_id' });
-
-    // 1. Forward the multipart body verbatim to the audio endpoint. We
-    //    sign with the raw multipart bytes so the server's HMAC verify
-    //    matches.
-    const audioPath = `/sessions/${sessionId}/audio`;
-    const audioSig = signRequest(audioPath, body);
-    await fetch(audioSig.url, {
-      method: 'POST',
-      headers: {
-        'content-type': ct,
-        'x-arryve-ts': audioSig.ts,
-        'x-arryve-signature': audioSig.sig,
-      },
-      body: body as unknown as BodyInit,
+    const b = req.body as Body;
+    if (!b || !b.sessionId || !/^[0-9a-f-]{36}$/i.test(b.sessionId)) {
+      return res.status(400).json({ error: 'bad sessionId' });
+    }
+    const path = `/sessions/${b.sessionId}/finalize`;
+    const json = JSON.stringify({
+      outcome: b.outcome ?? null,
+      ttfb_ms: b.ttfb_ms ?? null,
+      turns: b.turns ?? null,
     });
-
-    // 2. Send the finalize payload to close the session row.
-    const finalizePath = `/sessions/${sessionId}/finalize`;
-    const finalizePayload = JSON.stringify({ outcome, ttfb_ms: null, turns });
-    const finalizeSig = signRequest(finalizePath, finalizePayload);
-    await fetch(finalizeSig.url, {
+    const { ts, sig, url } = signRequest(path, json);
+    const r = await fetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-arryve-ts': finalizeSig.ts,
-        'x-arryve-signature': finalizeSig.sig,
+        'x-arryve-ts': ts,
+        'x-arryve-signature': sig,
       },
-      body: finalizePayload,
+      body: json,
     });
-    void durationMs; // currently unused — duration comes from the audio upload itself.
-    void DASHBOARD_BASE;
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      // eslint-disable-next-line no-console
+      console.warn('[session-finalize] upstream', r.status, txt.slice(0, 200));
+      return res.status(502).json({ error: 'upstream' });
+    }
     return res.status(204).end();
   } catch (err) {
-    console.error('[session-finalize] error', err);
+    // eslint-disable-next-line no-console
+    console.warn('[session-finalize] handler error', (err as Error).message);
     return res.status(500).json({ error: 'finalize failed' });
   }
 }
