@@ -74,6 +74,15 @@ export function logDemoEvent(
     /* ignore */
   }
 
+  // Mirror to dashboard-api on the A100 (Postgres-backed). Same
+  // sendBeacon discipline as above. The proxy at /api/session-event
+  // signs the request before forwarding to https://api.tryarryve.com/dashboard.
+  try {
+    forwardToDashboard(type, sid, detail);
+  } catch {
+    /* ignore */
+  }
+
   // Mirror to Clarity. Names are kept stable for funnel filters.
   try {
     switch (type) {
@@ -140,6 +149,95 @@ export function logDemoEvent(
     }
   } catch {
     /* clarity offline */
+  }
+}
+
+function postDashboard(payload: unknown): void {
+  try {
+    const json = JSON.stringify(payload);
+    const blob = new Blob([json], { type: 'application/json' });
+    if (navigator.sendBeacon && navigator.sendBeacon('/api/session-event', blob)) return;
+    void fetch('/api/session-event', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: json,
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    /* ignore */
+  }
+}
+
+function forwardToDashboard(
+  type: DemoEventType,
+  sid: string,
+  detail: Record<string, unknown>
+): void {
+  if (type === 'session_start') {
+    postDashboard({
+      kind: 'session_start',
+      sessionId: sid,
+      ua: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      variant:
+        typeof window !== 'undefined' ? detectVariant() : undefined,
+      language:
+        typeof document !== 'undefined' ? document.documentElement.lang : undefined,
+      referrer_host:
+        typeof document !== 'undefined' && document.referrer
+          ? safeHost(document.referrer)
+          : undefined,
+    });
+    return;
+  }
+  if (type === 'tool_call') {
+    const d = detail as Record<string, unknown>;
+    postDashboard({
+      kind: 'tool_call',
+      sessionId: sid,
+      ts: Date.now(),
+      name: (d.name as string) ?? 'unknown',
+      args: d.args,
+      ok: Boolean(d.ok ?? true),
+      soft_error: Boolean(d.softError ?? false),
+      http_status: typeof d.status === 'number' ? d.status : undefined,
+      result: undefined, // tool result echoed only via /api/tool-invoke proxy
+      error: typeof d.error === 'string' ? d.error : undefined,
+      ms: typeof d.ms === 'number' ? d.ms : undefined,
+    });
+    return;
+  }
+  // Generic event row.
+  const role =
+    type === 'transcript' ? (detail as { role?: string }).role : undefined;
+  const text =
+    type === 'transcript' ? (detail as { text?: string }).text : undefined;
+  postDashboard({
+    kind: 'event',
+    sessionId: sid,
+    ts: Date.now(),
+    type,
+    role,
+    text,
+    detail,
+  });
+}
+
+function detectVariant(): string {
+  if (typeof location === 'undefined') return 'unknown';
+  const path = location.pathname.toLowerCase();
+  if (path === '/' || path === '/index.html') return 'landing';
+  if (path.endsWith('pitchsales.html')) return 'pitch_sales';
+  if (path.endsWith('pitchru.html')) return 'pitch_ru';
+  if (path.endsWith('pitchuz.html')) return 'pitch_uz';
+  if (path.endsWith('pitch.html')) return 'pitch_seed';
+  return 'other';
+}
+
+function safeHost(referrer: string): string | undefined {
+  try {
+    return new URL(referrer).hostname;
+  } catch {
+    return undefined;
   }
 }
 

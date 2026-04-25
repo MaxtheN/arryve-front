@@ -24,6 +24,7 @@ import {
 
 import { getSessionId, logDemoEvent } from './demo-log';
 import { lookupPropertyInfo } from './property-kb';
+import { Recorder } from './recorder';
 
 const INPUT_RATE = 16000;
 const OUTPUT_RATE = 24000;
@@ -73,6 +74,7 @@ export class GeminiLiveSession {
   private scheduledSources: Set<AudioBufferSourceNode> = new Set();
   private callbacks: GeminiLiveCallbacks;
   private config: GeminiLiveConfig;
+  private recorder: Recorder = new Recorder();
   private status: GeminiLiveStatus = 'idle';
   private turnStartedAt: number | null = null;
   private waitingForFirstAudio = false;
@@ -99,6 +101,7 @@ export class GeminiLiveSession {
 
   async start(): Promise<void> {
     this.setStatus('connecting');
+    this.recorder.start();
     const startedAt = performance.now();
     try {
       // Playback context is 24kHz so the model's native output plays without
@@ -196,9 +199,12 @@ export class GeminiLiveSession {
 
   async stop(): Promise<void> {
     const reason = this.endReason ?? 'user-stopped';
+    this.recorder.stop();
+    const recording = this.recorder.finalize();
     await this.cleanup();
     this.setStatus('idle');
     this.callbacks.onEnded?.(reason);
+    if (recording) void uploadRecording(recording.wav, recording.durationMs, reason, this.completedTurns);
   }
 
   private startMicPump() {
@@ -210,6 +216,8 @@ export class GeminiLiveSession {
     this.micNode.port.onmessage = (ev: MessageEvent<ArrayBuffer>) => {
       if (!this.session) return;
       const float32 = new Float32Array(ev.data);
+      // Tee the raw mic frame to the recorder (it'll resample to 24 kHz).
+      this.recorder.pushMic(float32, this.audioCtx!.sampleRate);
       const resampled = resampleLinear(
         float32,
         this.audioCtx!.sampleRate,
@@ -439,6 +447,8 @@ export class GeminiLiveSession {
     if (!this.playbackCtx) return;
     const pcm = base64ToPcm16(base64);
     const float32 = pcm16ToFloat(pcm);
+    // Tee to the recorder before scheduling. Float32 is already at 24 kHz.
+    this.recorder.pushBot(float32);
     const buffer = this.playbackCtx.createBuffer(1, float32.length, OUTPUT_RATE);
     buffer.copyToChannel(float32, 0);
     const source = this.playbackCtx.createBufferSource();
@@ -522,6 +532,31 @@ export class GeminiLiveSession {
       }
       this.playbackCtx = null;
     }
+  }
+}
+
+async function uploadRecording(
+  wav: Blob,
+  durationMs: number,
+  outcome: string,
+  turns: number
+): Promise<void> {
+  const sid = getSessionId();
+  if (!sid) return;
+  try {
+    const fd = new FormData();
+    fd.append('audio', wav, `${sid}.wav`);
+    fd.append('duration_ms', String(durationMs));
+    fd.append('outcome', outcome);
+    fd.append('turns', String(turns));
+    fd.append('session_id', sid);
+    await fetch('/api/session-finalize', {
+      method: 'POST',
+      body: fd,
+      keepalive: true,
+    });
+  } catch {
+    /* fire-and-forget */
   }
 }
 
