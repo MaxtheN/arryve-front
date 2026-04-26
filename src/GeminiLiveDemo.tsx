@@ -1,4 +1,5 @@
 import { Mic, MicOff, Sparkles } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { useVoiceDemo } from './VoiceDemoContext';
 import type { GeminiLiveStatus } from './gemini-live';
 import { logCtaClick } from './demo-log';
@@ -38,6 +39,17 @@ export function GeminiLiveDemo() {
   const isActive =
     status === 'connecting' || status === 'listening' || status === 'speaking';
 
+  // Auto-scroll the transcript pane on every transcript mutation. The
+  // existing reducer in VoiceDemoContext appends a new entry on role-change
+  // and edits the last entry in place when the model streams more text into
+  // the same turn — so we have to react to the whole array, not just length.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [transcripts]);
+
   return (
     <div className="rounded-3xl bg-white border border-forest-950/10 shadow-[0_40px_120px_-40px_rgba(3,36,30,0.22)] overflow-hidden">
       <div className="flex items-center justify-between px-6 md:px-7 py-5 border-b border-ivory-200">
@@ -53,7 +65,7 @@ export function GeminiLiveDemo() {
         </div>
       </div>
 
-      <div className="px-6 md:px-7 py-6 min-h-[240px] max-h-[360px] overflow-y-auto">
+      <div ref={scrollRef} className="px-6 md:px-7 py-6 min-h-[240px] max-h-[360px] overflow-y-auto">
         {transcripts.length === 0 ? (
           <div className="text-center text-[14px] text-forest-950/55 py-10 font-serif italic">
             {isActive
