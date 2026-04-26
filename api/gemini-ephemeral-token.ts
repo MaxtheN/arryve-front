@@ -22,16 +22,17 @@ import {
 } from '@google/genai';
 
 import { buildSystemPrompt } from './_arvy-prompt.js';
+import { PMS_TOOL_DECLARATIONS } from './_pms-tools.js';
 
 const MODEL = 'gemini-3.1-flash-live-preview';
 const TOKEN_USES = 1;
 const TOKEN_TTL_MINUTES = 30;
 
-// Public-demo tool set: only flows whose outputs are effectively public
-// information, plus a client-side `end_call` tool the model invokes when
-// the conversation is naturally done. That tool lives in the browser
-// (no server round-trip) — the client tears down the WebSocket after
-// the model's final reply plays out.
+// Tool surface for the web demo. Mirrors the voice-agent (phone) tool set:
+// every flow in automation/src/server.ts FLOWS, declared via the generated
+// PMS_TOOL_DECLARATIONS in _pms-tools.ts. Plus two client-side tools that
+// don't round-trip to automation: `lookup_property_info` (KB) and `end_call`
+// (WebSocket teardown).
 function safeTools(toolsEnabled: boolean) {
   const kbLookup = {
     name: 'lookup_property_info',
@@ -49,54 +50,7 @@ function safeTools(toolsEnabled: boolean) {
       required: ['topic'],
     },
   };
-  const grounding = toolsEnabled
-    ? [
-        {
-          name: 'search_availability',
-          description:
-            'Check bookable rates at Holiday Inn Express Red Bank for a date range. Returns room types and per-night rates — no guest info.',
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              checkIn: { type: Type.STRING, description: 'YYYY-MM-DD' },
-              checkOut: { type: Type.STRING, description: 'YYYY-MM-DD' },
-              adults: { type: Type.INTEGER, description: 'Default 1.' },
-              rooms: { type: Type.INTEGER, description: 'Default 1.' },
-            },
-            required: ['checkIn', 'checkOut'],
-          },
-        },
-        {
-          name: 'lookup_loyalty_member',
-          description:
-            'Verify a guest-provided IHG One Rewards membership number against the property PMS. Call this EVERY time a guest claims to be an IHG member — never just take their word for it. Returns tier (Club/Silver/Gold/Platinum/Diamond), member name, and email on a match, or status="not-found" / "invalid-number" if the number is wrong.',
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              membershipNumber: {
-                type: Type.STRING,
-                description:
-                  'IHG One Rewards account number as spoken by the guest, digits only — strip spaces, dashes, and any "number" prefix. 6–16 digits expected.',
-              },
-            },
-            required: ['membershipNumber'],
-          },
-        },
-        {
-          name: 'lost_found_search',
-          description:
-            'Search the Lost & Found dashboard by date range or keyword. Returns item descriptions — no guest PII.',
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              keyword: { type: Type.STRING },
-              fromDate: { type: Type.STRING, description: 'YYYY-MM-DD' },
-              toDate: { type: Type.STRING, description: 'YYYY-MM-DD' },
-            },
-          },
-        },
-      ]
-    : [];
+  const grounding = toolsEnabled ? PMS_TOOL_DECLARATIONS : [];
   return [
     {
       functionDeclarations: [

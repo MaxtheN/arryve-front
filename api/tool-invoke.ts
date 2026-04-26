@@ -14,20 +14,23 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
+import { PMS_TOOL_NAMES, toolNameToFlow } from './_pms-tools.js';
 
-// Narrowed for public demo: only flows that return effectively public info.
-// Destructive + PII-leaking flows are blocked here even if Gemini hallucinates
-// their names.
-const ALLOWED_FLOWS = new Set([
-  'search-availability',
-  'lost-found-search',
-  'lookup-loyalty',
+// Mirror the voice-agent's full PMS surface — every tool in PMS_TOOL_NAMES
+// is forwardable. Destructive flows write to the HK *training* tenant; that
+// tradeoff is conscious. The Gemini ephemeral token only includes these
+// tools, but we re-validate here as defense-in-depth against a hallucinated
+// tool name. The `lookup_loyalty_member` Gemini name historically mapped to
+// the `lookup-loyalty` flow — keep that alias so old browser bundles in
+// flight don't break.
+const ALLOWED_TOOL_NAMES = new Set<string>([
+  ...PMS_TOOL_NAMES,
+  'lookup_loyalty_member',
 ]);
 
-const TOOL_TO_FLOW: Record<string, string> = {
-  search_availability: 'search-availability',
-  lost_found_search: 'lost-found-search',
-  lookup_loyalty_member: 'lookup-loyalty',
+const TOOL_NAME_ALIAS: Record<string, string> = {
+  // legacy Gemini name → canonical voice-agent name
+  lookup_loyalty_member: 'lookup_loyalty',
 };
 
 function requireEnv(name: string): string {
@@ -59,12 +62,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).json({ error: 'name required' });
       return;
     }
-    const flow = TOOL_TO_FLOW[name];
-    if (!flow || !ALLOWED_FLOWS.has(flow)) {
+    if (!ALLOWED_TOOL_NAMES.has(name)) {
       logEvent({ sessionId: sid, ok: false, name, error: `tool not allowed` });
       res.status(403).json({ error: `tool ${name} not allowed from demo` });
       return;
     }
+    const canonical = TOOL_NAME_ALIAS[name] ?? name;
+    const flow = toolNameToFlow(canonical);
 
     const automationUrl = requireEnv('AUTOMATION_URL').replace(/\/+$/, '');
     const secret = requireEnv('AUTOMATION_TOOL_SECRET');
