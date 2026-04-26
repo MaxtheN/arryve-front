@@ -188,11 +188,18 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
           const msg = err.message || String(err);
           setError(msg);
           logDemoEvent('error', { error: msg });
+          // Connection died — close the recorded slot so we don't leak
+          // a Playwright context until the idle GC sweeps it.
+          if (sid) signalAutomationEnd(sid);
         },
         onEnded: (reason) => {
           setEndedReason(reason);
           logDemoEvent('ended', { reason });
           sessionRef.current = null;
+          // Gemini ended the call itself (e.g. end_call tool). Without
+          // this the recorded context stays open until the user closes
+          // the tab (sendBeacon on unmount) or the idle GC sweeps.
+          if (sid) signalAutomationEnd(sid);
         },
       }
     );
