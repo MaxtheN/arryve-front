@@ -78,13 +78,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
+    // Pin the call to the recorded session's Playwright context (if one
+    // was allocated by /sessions/begin) so the agent's actions land in the
+    // session's video. Falls back to the warm pool when absent.
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      'x-arryve-demo-ts': ts,
+      'x-arryve-demo-signature': signature,
+    };
+    if (sessionId) headers['x-arryve-session-id'] = sessionId;
     const upstream = await fetch(`${automationUrl}/flows/${flow}`, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-arryve-demo-ts': ts,
-        'x-arryve-demo-signature': signature,
-      },
+      headers,
       body,
       signal: controller.signal,
     }).catch((err) => {

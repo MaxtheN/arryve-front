@@ -18,7 +18,7 @@ import {
   GeminiLiveSession,
   type GeminiLiveStatus,
 } from './gemini-live';
-import { logDemoEvent, newSessionId } from './demo-log';
+import { getSessionId, logDemoEvent, newSessionId } from './demo-log';
 
 export type TranscriptEntry = { id: number; role: 'user' | 'model'; text: string };
 
@@ -44,6 +44,38 @@ interface VoiceDemoValue {
 
 const VoiceDemoCtx = createContext<VoiceDemoValue | null>(null);
 
+// Module-level dedupe so the unmount cleanup doesn't re-fire `end` for a
+// session the user already stopped explicitly. Without this, the bottom of
+// `start`'s closure could run end twice and the second call would 404 on
+// automation (slot already gone).
+const endedSessions = new Set<string>();
+
+function signalAutomationEnd(sessionId: string): void {
+  if (endedSessions.has(sessionId)) return;
+  endedSessions.add(sessionId);
+  const payload = JSON.stringify({ sessionId });
+  // Prefer sendBeacon so the browser delivers it even on tab close. The
+  // automation endpoint may take 5–25 s to upload the video; the browser
+  // hand-off via beacon means we don't have to wait.
+  try {
+    if (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.sendBeacon === 'function'
+    ) {
+      const blob = new Blob([payload], { type: 'application/json' });
+      if (navigator.sendBeacon('/api/automation-session-end', blob)) return;
+    }
+  } catch {
+    /* ignore */
+  }
+  void fetch('/api/automation-session-end', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: payload,
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<GeminiLiveStatus>('idle');
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
@@ -61,8 +93,10 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     return () => {
+      const sid = getSessionId();
       sessionRef.current?.stop();
       sessionRef.current = null;
+      if (sid) signalAutomationEnd(sid);
     };
   }, []);
 
@@ -96,6 +130,17 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
       ua: navigator.userAgent,
       lang: navigator.language,
     });
+    // Fire-and-forget: open a recorded Playwright context for this session
+    // so PMS actions during the call land in a video. Cold-start is 10–30 s
+    // but runs in parallel with token mint and the user's first turn, so
+    // the recording is usually warm before the first tool call. Failure is
+    // non-fatal — the call still works, just without a video on the dashboard.
+    void fetch('/api/automation-session-begin', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: sid }),
+      keepalive: true,
+    }).catch(() => undefined);
     const t0 = performance.now();
     let minted: EphemeralTokenResponse;
     try {
@@ -160,8 +205,10 @@ export function VoiceDemoProvider({ children }: { children: React.ReactNode }) {
   }, [appendTranscript]);
 
   const stop = useCallback(async () => {
+    const sid = getSessionId();
     await sessionRef.current?.stop();
     sessionRef.current = null;
+    if (sid) signalAutomationEnd(sid);
   }, []);
 
   const value: VoiceDemoValue = {
