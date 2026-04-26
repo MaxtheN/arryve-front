@@ -50,12 +50,43 @@ function safeTools(toolsEnabled: boolean) {
       required: ['topic'],
     },
   };
-  const grounding = toolsEnabled ? PMS_TOOL_DECLARATIONS : [];
+  // Strip the production-only Web-Link payment path: in the training
+  // tenant it returns `pending-commit-capture` (no Payments module) so
+  // Arvy would dead-end. The demo uses `capture_card_demo` instead.
+  const grounding = toolsEnabled
+    ? PMS_TOOL_DECLARATIONS.filter(
+        (t) => t.name !== 'send_payments_web_link' && t.name !== 'update_payment_source',
+      )
+    : [];
+  // Demo-only mock: collects card details verbally, returns last-4 + exp.
+  // Resolved client-side in gemini-live.ts — no server round-trip and the
+  // PAN never leaves the browser tab. Replaces the W6 web-link flow so the
+  // demo can show "I have your card on file" without needing Twilio Pay or
+  // a Payments module.
+  const captureCardDemo = {
+    name: 'capture_card_demo',
+    description:
+      "Demo-only: capture the guest's card verbally and pretend to save it on the reservation. Returns the last 4 digits + expiration so you can read them back. Use this WHENEVER you need to attach a card on this demo — there is no Web-Link / Twilio Pay path. Ask for cardNumber (13–19 digits), expMonth (1–12), expYear (YYYY or YY), and cardholderName. Never read the full card number aloud — only confirm by the last 4.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        cardNumber: {
+          type: Type.STRING,
+          description: 'Card number, digits only — 13 to 19 digits.',
+        },
+        expMonth: { type: Type.STRING, description: 'Expiration month, 1–12.' },
+        expYear: { type: Type.STRING, description: 'Expiration year, YYYY or YY.' },
+        cardholderName: { type: Type.STRING, description: 'Name as it appears on the card.' },
+      },
+      required: ['cardNumber', 'expMonth', 'expYear'],
+    },
+  };
   return [
     {
       functionDeclarations: [
         kbLookup,
         ...grounding,
+        ...(toolsEnabled ? [captureCardDemo] : []),
         {
           name: 'end_call',
           description:

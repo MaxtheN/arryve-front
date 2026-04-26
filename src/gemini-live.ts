@@ -314,6 +314,49 @@ export class GeminiLiveSession {
         });
         continue;
       }
+      // Demo-only mock: collects card details verbally and pretends to save
+      // them. Returns last-4 + exp so Arvy can read them back. Never sends
+      // the PAN anywhere — not to logs, not to the dashboard, not over
+      // the wire. Use ONLY in the public web demo. The training tenant has
+      // no Payments module so no real card-on-file path exists.
+      if (name === 'capture_card_demo') {
+        const a = (args ?? {}) as Record<string, unknown>;
+        const rawPan = String(a.cardNumber ?? '').replace(/\D/g, '');
+        const last4 = rawPan.slice(-4);
+        const expMonth = String(a.expMonth ?? '');
+        const expYear = String(a.expYear ?? '');
+        const cardholderName = typeof a.cardholderName === 'string' ? a.cardholderName : undefined;
+        if (last4.length !== 4) {
+          responses.push({
+            id,
+            name,
+            response: { output: { ok: false, error: 'card_number must be 13–19 digits' } },
+          });
+          logDemoEvent('tool_call', { name, args: { error: 'short-pan' }, ms: 0, ok: false });
+          continue;
+        }
+        responses.push({
+          id,
+          name,
+          response: {
+            output: {
+              ok: true,
+              cardLast4: last4,
+              expMonth,
+              expYear,
+              cardholderName,
+              savedAt: new Date().toISOString(),
+            },
+          },
+        });
+        logDemoEvent('tool_call', {
+          name,
+          args: { cardLast4: last4, expMonth, expYear, cardholderName },
+          ms: 0,
+          ok: true,
+        });
+        continue;
+      }
       const toolStart = performance.now();
       try {
         const resp = await fetch('/api/tool-invoke', {
