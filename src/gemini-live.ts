@@ -298,7 +298,7 @@ export class GeminiLiveSession {
       if (name === 'end_call') {
         responses.push({ id, name, response: { output: { ok: true } } });
         shouldEnd = true;
-        logDemoEvent('tool_call', { name: 'end_call', args });
+        logDemoEvent('tool_call', { name: 'end_call', args, ok: true, result: { ok: true } });
         continue;
       }
       // Local-only tool: resolve KB lookups in-process. Zero network, ~0.1ms.
@@ -311,6 +311,7 @@ export class GeminiLiveSession {
           args: { topic },
           ms: 0,
           ok: true,
+          result: { topic, info },
         });
         continue;
       }
@@ -354,6 +355,13 @@ export class GeminiLiveSession {
           args: { cardLast4: last4, expMonth, expYear, cardholderName },
           ms: 0,
           ok: true,
+          result: {
+            ok: true,
+            cardLast4: last4,
+            expMonth,
+            expYear,
+            cardholderName,
+          },
         });
         continue;
       }
@@ -396,6 +404,7 @@ export class GeminiLiveSession {
             status: 200,
             softError: true,
             error: (resultObj as { serverMessage?: string }).serverMessage,
+            result: resultObj,
           });
           responses.push({
             id,
@@ -409,6 +418,7 @@ export class GeminiLiveSession {
           args,
           ms: toolMs,
           ok: true,
+          result: (body as { result?: unknown }).result,
         });
         responses.push({ id, name, response: { output: body } });
       } catch (err) {

@@ -200,7 +200,7 @@ function forwardToDashboard(
       ok: Boolean(d.ok ?? true),
       soft_error: Boolean(d.softError ?? false),
       http_status: typeof d.status === 'number' ? d.status : undefined,
-      result: undefined, // tool result echoed only via /api/tool-invoke proxy
+      result: d.result,
       error: typeof d.error === 'string' ? d.error : undefined,
       ms: typeof d.ms === 'number' ? d.ms : undefined,
     });
