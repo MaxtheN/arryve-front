@@ -38,9 +38,11 @@ exec(compile(mod, '<extracted>', 'exec'), g)
 schemas = g['tool_schemas']()
 schemas = [{'name': s.name, 'description': s.description, 'parameters': s.parameters} for s in schemas]
 
-# Tools whose dispatch lives in voice-agent itself (Gmail-backed) — no
-# automation flow registered, so the demo can't call them.
-SKIP = {'send_info_email', 'send_folio_followup_email'}
+# Tools whose dispatch lives outside automation — the demo would have no
+# place to send the call to, so we drop them from the demo's tool list.
+#   - send_info_email / send_folio_followup_email: Gmail-backed, voice-agent only.
+#   - queue_manual_booking: dashboard-api direct (HMAC), voice-agent only.
+SKIP = {'send_info_email', 'send_folio_followup_email', 'queue_manual_booking'}
 schemas = [s for s in schemas if s['name'] not in SKIP]
 
 TYPE_MAP = {
