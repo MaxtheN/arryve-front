@@ -15,6 +15,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
 import { PMS_TOOL_NAMES, toolNameToFlow } from './_pms-tools.js';
+import { signRequest } from './_dashboard-sign.js';
 
 // Mirror the voice-agent's full PMS surface — every tool in PMS_TOOL_NAMES
 // is forwardable. Destructive flows write to the HK *training* tenant; that
@@ -65,6 +66,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!ALLOWED_TOOL_NAMES.has(name)) {
       logEvent({ sessionId: sid, ok: false, name, error: `tool not allowed` });
       res.status(403).json({ error: `tool ${name} not allowed from demo` });
+      return;
+    }
+    // queue_manual_booking dispatches direct to dashboard-api (no automation
+    // flow). The demo's create_booking returns `pending-commit-capture` on
+    // the training tenant; the prompt rule says to call this tool instead
+    // of warm-transferring, then read the guest a normal-sounding confirm.
+    if (name === 'queue_manual_booking') {
+      const result = await dispatchManualBooking(sid, args ?? {});
+      logEvent({
+        sessionId: sid,
+        ok: result.ok,
+        name,
+        ms: Date.now() - startedAt,
+        flowError: result.ok ? undefined : result.error,
+      });
+      res.status(200).json(result);
       return;
     }
     const canonical = TOOL_NAME_ALIAS[name] ?? name;
@@ -141,5 +158,93 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: message,
     });
     res.status(500).json({ error: message });
+  }
+}
+
+// ─────────────────────────────────────────────────────── manual-booking queue
+//
+// HMAC-direct write to dashboard-api. Mirrors the voice-agent's Python
+// dispatch (manual_booking.py): generate an `MQ-XXXXXX` reference, strip
+// confirm/reason from the payload (queue-level metadata), POST through
+// the same signing scheme used by every other dashboard write helper.
+
+const REF_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // unambiguous
+
+function generateRef(): string {
+  let body = '';
+  for (let i = 0; i < 6; i++) {
+    body += REF_ALPHABET[crypto.randomInt(REF_ALPHABET.length)];
+  }
+  return `MQ-${body}`;
+}
+
+interface ManualBookingResult {
+  ok: boolean;
+  result?: { ref: string; id?: string };
+  error?: string;
+}
+
+async function dispatchManualBooking(
+  sessionId: string,
+  args: Record<string, unknown>,
+): Promise<ManualBookingResult> {
+  if (!args.confirm) {
+    return { ok: false, error: 'queue_manual_booking requires confirm=true' };
+  }
+  const reason =
+    typeof args.reason === 'string' && args.reason.trim().length > 0
+      ? String(args.reason).trim()
+      : '';
+  if (!reason) {
+    return { ok: false, error: 'queue_manual_booking requires non-empty reason' };
+  }
+  const payload: Record<string, unknown> = { ...args };
+  delete payload.confirm;
+  delete payload.reason;
+  const ref = generateRef();
+  // Sign-and-send the exact same string — the server hashes received bytes,
+  // so byte equality between sign-time and send-time is what matters.
+  const body = JSON.stringify({
+    payload,
+    reason,
+    ref,
+    session_id: sessionId === 'no-session' ? null : sessionId,
+  });
+  const { ts, sig, url } = signRequest('/manual-bookings', body);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const upstream = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-arryve-ts': ts,
+        'x-arryve-signature': sig,
+      },
+      body,
+      signal: controller.signal,
+    });
+    const text = await upstream.text();
+    if (!upstream.ok) {
+      return {
+        ok: false,
+        error: `dashboard-api ${upstream.status}: ${text.slice(0, 200)}`,
+      };
+    }
+    let parsed: { id?: string; ref?: string } = {};
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Server returned non-JSON; surface a stable error.
+      return { ok: false, error: `dashboard-api parse error: ${text.slice(0, 200)}` };
+    }
+    return { ok: true, result: { ref: parsed.ref ?? ref, id: parsed.id } };
+  } catch (err) {
+    return {
+      ok: false,
+      error: `dashboard-api transport error: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  } finally {
+    clearTimeout(timeout);
   }
 }

@@ -41,8 +41,10 @@ schemas = [{'name': s.name, 'description': s.description, 'parameters': s.parame
 # Tools whose dispatch lives outside automation — the demo would have no
 # place to send the call to, so we drop them from the demo's tool list.
 #   - send_info_email / send_folio_followup_email: Gmail-backed, voice-agent only.
-#   - queue_manual_booking: dashboard-api direct (HMAC), voice-agent only.
-SKIP = {'send_info_email', 'send_folio_followup_email', 'queue_manual_booking'}
+# `queue_manual_booking` IS exposed to the demo even though its dispatch is
+# direct to dashboard-api (not automation/) — tool-invoke.ts special-cases
+# the name and calls dashboard-api with HMAC.
+SKIP = {'send_info_email', 'send_folio_followup_email'}
 schemas = [s for s in schemas if s['name'] not in SKIP]
 
 TYPE_MAP = {

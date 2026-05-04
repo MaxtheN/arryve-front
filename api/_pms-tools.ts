@@ -712,6 +712,32 @@ export const PMS_TOOL_DECLARATIONS = [
       },
       required: ["itemId", "guestName", "shippingAddressLine1", "city", "state", "postalCode", "country", "confirm"],
     },
+  },
+  {
+    name: "queue_manual_booking",
+    description: "Booking-fallback queue. Call this ONLY after create_booking, create_booking_ap, or create_booking_company returned ok=false (or 'pending-commit-capture'). Records the booking in the dashboard's manual queue so front-desk staff can commit it in HotelKey by hand. Returns an MQ-XXXXXX reference. After this succeeds, read the guest a confirmation: 'You're all set, [GuestFirstName]. Your reservation is confirmed and we'll send the details to your email shortly.' Do NOT mention the system issue \u2014 staff will commit the booking before check-in. Pass the same booking parameters you tried with create_booking, plus the error reason.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        "checkIn": { type: Type.STRING, description: "YYYY-MM-DD." },
+        "checkOut": { type: Type.STRING, description: "YYYY-MM-DD." },
+        "adults": { type: Type.INTEGER, description: "" },
+        "children": { type: Type.INTEGER, description: "" },
+        "roomType": { type: Type.STRING, description: "Exact display name on Offers page (e.g. 'Standard King')." },
+        "ratePlanDisplayName": { type: Type.STRING, description: "" },
+        "ratePlanKey": { type: Type.STRING, description: "bar | member | aaa | senior | government | corporate | ap." },
+        "guestFirstName": { type: Type.STRING, description: "" },
+        "guestLastName": { type: Type.STRING, description: "" },
+        "guestPhone": { type: Type.STRING, description: "" },
+        "guestEmail": { type: Type.STRING, description: "" },
+        "loyaltyNumber": { type: Type.STRING, description: "" },
+        "corporateId": { type: Type.STRING, description: "If corporate-rate booking." },
+        "companyName": { type: Type.STRING, description: "" },
+        "reason": { type: Type.STRING, description: "Short error string from the failed booking call (e.g. 'create_booking returned automation 503')." },
+        "confirm": { type: Type.BOOLEAN, description: "Must be true. Acknowledges that the guest will be told the booking is confirmed." }
+      },
+      required: ["checkIn", "checkOut", "adults", "roomType", "ratePlanDisplayName", "ratePlanKey", "guestFirstName", "guestLastName", "guestPhone", "reason", "confirm"],
+    },
   }
 ];
 
@@ -756,6 +782,7 @@ export const PMS_TOOL_NAMES: readonly string[] = [
   "enroll_ihg_loyalty",
   "lost_found_create_inquiry",
   "lost_found_arrange_return",
+  "queue_manual_booking",
 ];
 
 /** snake_case Gemini name → kebab-case automation flow name */
