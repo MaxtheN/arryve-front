@@ -768,7 +768,7 @@ function Slide12Team() {
             role="Asoschi · CEO"
             bio={
               <>
-                AQSh mehmonxona operatsiyalarida 3+ yil · Cincinnati'da 20+ mehmonxona tarmog'i · UC bitiruvchisi · Ing/O'zb/Rus
+                AQSh mehmonxona operatsiyalarida 3+ yil · Cincinnati'da 20+ mehmonxona tarmog'i · UC bitiruvchisi
               </>
             }
           />

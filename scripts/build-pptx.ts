@@ -622,7 +622,7 @@ async function main() {
         initial: 'R',
         name: 'Rakhmatjon',
         role: 'Founder · CEO',
-        bio: "3+ years US hotel ops · 20+ Cincinnati hotel network · UC grad · Eng/Uz/Ru",
+        bio: "3+ years US hotel ops · 20+ Cincinnati hotel network · UC grad",
       },
       {
         initial: 'N',
