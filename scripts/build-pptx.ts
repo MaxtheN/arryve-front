@@ -32,7 +32,7 @@ const C = {
   white: 'FFFFFF',
 };
 const F = { serif: 'Fraunces', sans: 'Inter' };
-const TOTAL = 10;
+const TOTAL = 9;
 
 async function renderArryveLogo(variant: 'dark' | 'light'): Promise<string> {
   const svgPath = path.resolve(process.cwd(), 'public', 'arryve-logo.svg');
@@ -126,8 +126,6 @@ async function main() {
         { text: '     ·     ', options: { color: C.ivoryLight, transparency: 65 } },
         { text: 'Nurislombek', options: { bold: true, color: C.ivoryLight } },
         { text: '  Technical Co-Founder', options: { color: C.ivoryLight, transparency: 45 } },
-        { text: '     ·     ', options: { color: C.ivoryLight, transparency: 65 } },
-        { text: 'Cincinnati, OH', options: { color: C.ivoryLight, transparency: 30 } },
       ],
       { x: 0.75, y: 6.5, w: 12, h: 0.4, fontFace: F.sans, fontSize: 12 },
     );
@@ -198,7 +196,7 @@ async function main() {
     );
   }
 
-  /* ─── Slide 03 — Solution ────────────────────────────────────────── */
+  /* ─── Slide 03 — Solution (combined with Arvy) ───────────────────── */
   {
     const s = pres.addSlide({ masterName: 'WARM' });
     addSlideNumber(s, 3);
@@ -212,99 +210,38 @@ async function main() {
         { text: 'never sleeps.', options: { italic: true } },
       ],
       {
-        x: 0.75, y: 1.2, w: 11, h: 2.2,
-        fontFace: F.serif, fontSize: 64, color: C.forest, charSpacing: -2,
-      },
-    );
-
-    s.addText('Answers every call. Acts on every booking. 24/7.', {
-      x: 0.75, y: 3.5, w: 11, h: 0.6,
-      fontFace: F.serif, fontSize: 22, italic: true,
-      color: C.forest, transparency: 25,
-    });
-
-    /* 3-step flow */
-    const steps = [
-      { n: '01', title: 'Guest calls', body: 'Any time, any property line.' },
-      { n: '02', title: 'Arvy answers', body: "Natural voice, in your tone." },
-      { n: '03', title: 'PMS updated', body: 'Booking, profile, ticket — live.' },
-    ];
-    const stepW = 3.65;
-    const stepGap = 0.45;
-    const stepX0 = 0.75;
-    /* Connecting line under dots */
-    s.addShape('line', {
-      x: 1.0, y: 5.5, w: 11.3, h: 0,
-      line: { color: C.forest, width: 0.5, transparency: 85 },
-    });
-    steps.forEach((step, i) => {
-      const x = stepX0 + i * (stepW + stepGap);
-      /* Numbered circle */
-      s.addShape('ellipse', {
-        x, y: 5.32, w: 0.4, h: 0.4,
-        fill: { color: C.forest },
-        line: { color: C.forest },
-      });
-      s.addText(step.n, {
-        x, y: 5.32, w: 0.4, h: 0.4,
-        fontFace: F.sans, fontSize: 9, bold: true,
-        color: C.acid, align: 'center', valign: 'middle',
-      });
-      s.addText(step.title, {
-        x, y: 5.85, w: stepW, h: 0.5,
-        fontFace: F.serif, fontSize: 22, color: C.forest,
-      });
-      s.addText(step.body, {
-        x, y: 6.4, w: stepW, h: 0.4,
-        fontFace: F.sans, fontSize: 11, color: C.forest, transparency: 35,
-      });
-    });
-  }
-
-  /* ─── Slide 04 — Arvy ────────────────────────────────────────────── */
-  {
-    const s = pres.addSlide({ masterName: 'LIGHT' });
-    addSlideNumber(s, 4);
-    addEyebrow(s, 'Arvy · the voice');
-
-    s.addText(
-      [
-        { text: 'Answers ' },
-        { text: 'every guest call.', options: { highlight: C.acid } },
-      ],
-      {
-        x: 0.75, y: 1.25, w: 11, h: 1.6,
-        fontFace: F.serif, fontSize: 52, color: C.forest, charSpacing: -1.5,
+        x: 0.75, y: 1.25, w: 11, h: 2.0,
+        fontFace: F.serif, fontSize: 60, color: C.forest, charSpacing: -2,
       },
     );
 
     /* Left column: bullets */
     const bullets = [
-      '24/7 — busy shifts and after hours',
-      "Natural voice, in your hotel's tone",
+      "Answers every call, 24/7 — in your hotel's tone",
+      'Updates your PMS — bookings, profiles, tickets',
       'Escalates to staff with full context',
     ];
     bullets.forEach((b, i) => {
-      const y = 3.4 + i * 0.55;
+      const y = 4.0 + i * 0.6;
       s.addShape('rect', {
-        x: 0.85, y: y + 0.13, w: 0.18, h: 0.18,
+        x: 0.85, y: y + 0.13, w: 0.2, h: 0.2,
         fill: { color: C.forestMid },
         line: { color: C.forestMid },
       });
       s.addText('✓', {
-        x: 0.85, y: y + 0.05, w: 0.2, h: 0.3,
+        x: 0.85, y: y + 0.05, w: 0.22, h: 0.3,
         fontFace: F.sans, fontSize: 12, bold: true,
         color: C.ivoryLight, align: 'center',
       });
       s.addText(b, {
-        x: 1.2, y, w: 5.6, h: 0.45,
+        x: 1.25, y, w: 5.6, h: 0.5,
         fontFace: F.sans, fontSize: 16, color: C.forest, transparency: 12,
       });
     });
 
     /* Right column: live call card */
     const cardX = 7.0;
-    const cardY = 3.0;
+    const cardY = 3.4;
     const cardW = 5.5;
     const cardH = 3.4;
     s.addShape('rect', {
@@ -346,10 +283,10 @@ async function main() {
     });
   }
 
-  /* ─── Slide 05 — Market analysis · financial model ───────────────── */
+  /* ─── Slide 04 — Market analysis · financial model ───────────────── */
   {
     const s = pres.addSlide({ masterName: 'WHITE' });
-    addSlideNumber(s, 5);
+    addSlideNumber(s, 4);
     addEyebrow(s, 'Market analysis · financial model');
 
     s.addText(
@@ -470,7 +407,7 @@ async function main() {
   /* ─── Slide 06 — Business model ──────────────────────────────────── */
   {
     const s = pres.addSlide({ masterName: 'LIGHT' });
-    addSlideNumber(s, 6);
+    addSlideNumber(s, 5);
     addEyebrow(s, 'Business model');
 
     s.addText(
@@ -556,7 +493,7 @@ async function main() {
   /* ─── Slide 07 — Go-to-market ────────────────────────────────────── */
   {
     const s = pres.addSlide({ masterName: 'WARM' });
-    addSlideNumber(s, 7);
+    addSlideNumber(s, 6);
     addEyebrow(s, 'Go to market');
 
     s.addText(
@@ -641,7 +578,7 @@ async function main() {
   /* ─── Slide 08 — Competitors (single contrarian thesis) ──────────── */
   {
     const s = pres.addSlide({ masterName: 'WARM' });
-    addSlideNumber(s, 8);
+    addSlideNumber(s, 7);
     addEyebrow(s, 'What others miss');
 
     s.addText(
@@ -662,7 +599,7 @@ async function main() {
   /* ─── Slide 09 — Team ────────────────────────────────────────────── */
   {
     const s = pres.addSlide({ masterName: 'LIGHT' });
-    addSlideNumber(s, 9);
+    addSlideNumber(s, 8);
     addEyebrow(s, 'Team');
 
     s.addText(
@@ -773,7 +710,7 @@ async function main() {
   /* ─── Slide 10 — Thank you ───────────────────────────────────────── */
   {
     const s = pres.addSlide({ masterName: 'DARK' });
-    addSlideNumber(s, 10, true);
+    addSlideNumber(s, 9, true);
 
     s.addImage({
       data: arryveLight,
@@ -810,8 +747,6 @@ async function main() {
         { text: 'contact@tryarryve.com', options: { bold: true, color: C.ivoryLight } },
         { text: '     ·     ', options: { color: C.ivoryLight, transparency: 65 } },
         { text: 'tryarryve.com', options: { color: C.ivoryLight, transparency: 25 } },
-        { text: '     ·     ', options: { color: C.ivoryLight, transparency: 65 } },
-        { text: 'Cincinnati, OH', options: { color: C.ivoryLight, transparency: 35 } },
       ],
       { x: 0.75, y: 6.6, w: 12, h: 0.4, fontFace: F.sans, fontSize: 13 },
     );

@@ -3,12 +3,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Play,
-  Pause,
 } from 'lucide-react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-
-import { playArvyVoice, stopArvyVoice, VOICES } from './voice';
 
 /* ─── Design tokens (match landing page) ───────────────────────────────
    forest-950  #03241E  — dark bg / headlines on light
@@ -20,9 +16,9 @@ import { playArvyVoice, stopArvyVoice, VOICES } from './voice';
    Fonts: Fraunces (serif display), Inter (sans body)
 ────────────────────────────────────────────────────────────────────── */
 
-const MAIN_SLIDES = 10; // Main flow. Appendix (Exit) sits at index 10, reachable via End.
-const APPENDIX_INDEX = 10;
-const TOTAL_WITH_APPENDIX = 11;
+const MAIN_SLIDES = 9; // Main flow. Appendix (Exit) sits at index 9, reachable via End.
+const APPENDIX_INDEX = 9;
+const TOTAL_WITH_APPENDIX = 10;
 
 export default function PitchDeckUz() {
   const [current, setCurrent] = useState(0);
@@ -63,18 +59,17 @@ export default function PitchDeckUz() {
     };
   }, []);
 
-  // 10 main slides + Slide14Exit as appendix (reach via End key).
+  // 9 main slides + Slide14Exit as appendix (reach via End key).
   const slides = [
     Slide01Title,           //  1  Title
     Slide02Problem,         //  2  Problem
-    SlideSolution,          //  3  Solution (high-level)
-    SlideArvy,              //  4  Arvy
-    Slide05Market,          //  5  Market analysis · financial model
-    Slide06BusinessModel,   //  6  Business model
-    Slide08GoToMarket,      //  7  Go-to-market
-    Slide10Competition,     //  8  Competitors
-    Slide12Team,            //  9  Team
-    SlideThankYou,          // 10  Thank you
+    SlideSolution,          //  3  Solution (combined with Arvy)
+    Slide05Market,          //  4  Market analysis · financial model
+    Slide06BusinessModel,   //  5  Business model
+    Slide08GoToMarket,      //  6  Go-to-market
+    Slide10Competition,     //  7  Competitors
+    Slide12Team,            //  8  Team
+    SlideThankYou,          //  9  Thank you
     Slide14Exit,            // +1  Appendix — Exit strategy (End key)
   ];
 
@@ -391,8 +386,6 @@ function Slide01Title() {
           <span className="text-ivory-100/30">·</span>
           <span className="font-medium text-ivory-50">Nurislombek</span>
           <span className="text-ivory-100/40">Texnik hammuassis</span>
-          <span className="text-ivory-100/30">·</span>
-          <span className="text-ivory-100/60">Cincinnati, OH</span>
         </div>
       </div>
     </section>
@@ -455,13 +448,12 @@ function Slide02Problem() {
   );
 }
 
-/* ─── Slide 03 — Solution (high-level, minimal) ──────────────────────── */
+/* ─── Slide 03 — Solution (combined with Arvy) ───────────────────────── */
 
 function SlideSolution() {
-  const flow = [
-    { n: '01', title: 'Mehmon qo\'ng\'iroq qiladi', body: 'Istalgan vaqt, istalgan liniya.' },
-    { n: '02', title: 'Arvy javob beradi', body: 'Tabiiy ovoz, sizning ohangingizda.' },
-    { n: '03', title: 'PMS yangilanadi', body: 'Bron, profil, tiket — jonli.' },
+  const transcript = [
+    { who: 'Mehmon', text: 'Bugun kechqurun king xona bormi?' },
+    { who: 'Arvy', text: 'Bitta king $189, nonushta qo\'shilgan. Kim nomida?' },
   ];
 
   return (
@@ -470,78 +462,16 @@ function SlideSolution() {
         <SlideNumber n={3} />
         <Eyebrow>Yechim</Eyebrow>
 
-        <h2 className="font-serif text-[48px] md:text-[76px] lg:text-[88px] font-normal tracking-[-0.03em] leading-[0.95] text-forest-950 mb-6 text-balance max-w-[16ch]">
+        <h2 className="font-serif text-[44px] md:text-[68px] lg:text-[80px] font-normal tracking-[-0.03em] leading-[0.95] text-forest-950 mb-12 text-balance max-w-[18ch]">
           Hech qachon <em className="italic font-light">uxlamaydigan</em> <Highlight>AI resepsiya</Highlight>.
-        </h2>
-        <p className="font-serif text-[20px] md:text-[26px] font-light italic text-forest-950/75 leading-[1.3] max-w-[36ch] mb-14 text-pretty">
-          Har bir qo'ng'iroqqa javob beradi. Har bir bron bo'yicha harakat qiladi. 24/7.
-        </p>
-
-        {/* 3-step flow */}
-        <div className="relative">
-          <div className="absolute left-0 right-0 top-[14px] h-px bg-forest-950/15 hidden md:block" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 relative">
-            {flow.map((step, i) => (
-              <div key={step.n} className="flex md:flex-col items-start md:items-start gap-4 md:gap-0">
-                <div className="flex md:block items-center gap-3">
-                  <div className="w-[28px] h-[28px] rounded-full bg-forest-950 text-acid-400 flex items-center justify-center font-mono text-[11px] font-semibold tabular-nums flex-shrink-0">
-                    {step.n}
-                  </div>
-                </div>
-                <div className="md:mt-5 flex-1">
-                  <div className="font-serif text-[22px] md:text-[26px] font-normal tracking-[-0.015em] leading-[1.2] text-forest-950 mb-1.5">
-                    {step.title}
-                  </div>
-                  <p className="text-[13px] md:text-[14px] text-forest-950/65 leading-[1.5]">
-                    {step.body}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </Slide>
-  );
-}
-
-/* ─── Slide 04 — Arvy ─────────────────────────────────────────────────── */
-
-function SlideArvy() {
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const handleHearArvy = () => {
-    if (isSpeaking) {
-      stopArvyVoice();
-      setIsSpeaking(false);
-      return;
-    }
-    playArvyVoice(VOICES.hero, {
-      onStart: () => setIsSpeaking(true),
-      onEnd: () => setIsSpeaking(false),
-    });
-  };
-
-  const transcript = [
-    { who: 'Mehmon', text: 'Bugun kechqurun king xona bormi?' },
-    { who: 'Arvy', text: 'Bitta king $189, nonushta qo\'shilgan. Kim nomida?' },
-  ];
-
-  return (
-    <Slide tone="light">
-      <div className="relative">
-        <SlideNumber n={4} />
-        <Eyebrow>Arvy · ovoz</Eyebrow>
-
-        <h2 className="font-serif text-[48px] md:text-[72px] font-normal tracking-[-0.025em] leading-[1.0] text-forest-950 mb-10 text-balance max-w-[18ch]">
-          Har bir <Highlight>mehmon qo'ng'irog'iga javob beradi.</Highlight>
         </h2>
 
         <div className="grid md:grid-cols-[1fr_1.05fr] gap-10 items-start">
           <div>
-            <ul className="space-y-4 text-[16px] md:text-[18px] text-forest-950/85 leading-[1.4] mb-8">
+            <ul className="space-y-4 text-[16px] md:text-[18px] text-forest-950/85 leading-[1.4]">
               {[
-                <>24/7 — band smenalar va ish vaqtidan keyin</>,
-                <>Tabiiy ovoz, mehmonxonangiz ohangida</>,
+                <>Har bir qo'ng'iroqqa javob beradi, 24/7 — mehmonxonangiz ohangida</>,
+                <>PMS&apos;ingizni yangilab turadi — bron, profil, tiket</>,
                 <>To'liq kontekst bilan xodimlarga uzatadi</>,
               ].map((line, i) => (
                 <li key={i} className="flex items-start gap-3">
@@ -550,28 +480,9 @@ function SlideArvy() {
                 </li>
               ))}
             </ul>
-
-            <button
-              type="button"
-              onClick={handleHearArvy}
-              aria-label={isSpeaking ? 'Stop Arvy' : 'Hear Arvy answer'}
-              className="inline-flex items-center gap-3 pl-1.5 pr-5 py-1.5 rounded-full border border-forest-950/20 bg-white hover:bg-ivory-100 transition-colors"
-            >
-              <span className="relative grid place-items-center h-10 w-10 rounded-full bg-forest-950 text-ivory-50">
-                {!isSpeaking && (
-                  <span className="absolute inset-0 rounded-full bg-forest-950 opacity-30 animate-ping" />
-                )}
-                <span className="relative">
-                  {isSpeaking ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-[1px]" />}
-                </span>
-              </span>
-              <span className="text-[15px] font-medium text-forest-950">
-                {isSpeaking ? 'Arvy gapirmoqda…' : 'Arvy ovozini tinglang'}
-              </span>
-            </button>
           </div>
 
-          {/* Live call card — Arvy in action */}
+          {/* Live call card */}
           <div className="rounded-3xl bg-white border border-forest-950/10 shadow-[0_40px_120px_-40px_rgba(3,36,30,0.28)] overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-ivory-200">
               <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-forest-950/70 font-medium">
@@ -579,7 +490,7 @@ function SlideArvy() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-forest-900 opacity-60" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-forest-900" />
                 </span>
-Jonli qo'ng'iroq
+                Jonli qo'ng'iroq
               </div>
               <div className="text-[11px] text-ivory-600 tabular-nums">11:42 PM</div>
             </div>
@@ -606,7 +517,7 @@ function Slide05Market() {
   return (
     <Slide tone="white">
       <div className="relative">
-        <SlideNumber n={5} />
+        <SlideNumber n={4} />
         <Eyebrow>Bozor tahlili · moliyaviy model</Eyebrow>
         <h2 className="font-serif text-[36px] md:text-[48px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 mb-2 text-balance max-w-[24ch]">
           Qanday pul ishlaymiz — <em className="italic font-light">matematika.</em>
@@ -705,7 +616,7 @@ function Slide06BusinessModel() {
   return (
     <Slide tone="light">
       <div className="relative">
-        <SlideNumber n={6} />
+        <SlideNumber n={5} />
         <Eyebrow>Biznes modeli</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 mb-10 text-balance max-w-[22ch]">
           Bir reja har obyekt uchun. <em className="italic font-light"><Highlight>~3 oyda qoplanadi.</Highlight></em>
@@ -784,7 +695,7 @@ function Slide08GoToMarket() {
   return (
     <Slide tone="warm">
       <div className="relative">
-        <SlideNumber n={7} />
+        <SlideNumber n={6} />
         <Eyebrow>Bozorga chiqish</Eyebrow>
         <h2 className="font-serif text-[44px] md:text-[60px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[22ch] mb-8 text-balance">
           <Highlight>Mustaqillardan</Highlight> boshlaymiz. <em className="italic font-light">Tarmoqlarga kengayamiz.</em>
@@ -827,7 +738,7 @@ function Slide10Competition() {
   return (
     <Slide tone="warm">
       <div className="relative">
-        <SlideNumber n={8} />
+        <SlideNumber n={7} />
         <Eyebrow>Boshqalar nimani o'tkazib yuboradi</Eyebrow>
 
         <h2 className="font-serif text-[40px] md:text-[60px] lg:text-[72px] font-normal tracking-[-0.025em] leading-[1.08] text-forest-950 max-w-[24ch] text-balance">
@@ -844,7 +755,7 @@ function Slide12Team() {
   return (
     <Slide tone="light">
       <div className="relative">
-        <SlideNumber n={9} />
+        <SlideNumber n={8} />
         <Eyebrow>Jamoa</Eyebrow>
         <h2 className="font-serif text-[40px] md:text-[56px] font-normal tracking-[-0.025em] leading-[1.04] text-forest-950 max-w-[22ch] mb-12 text-balance">
           Bu muammoni <em className="italic font-light">yashagan odamlar</em> tomonidan qurilgan.
@@ -935,7 +846,7 @@ function SlideThankYou() {
     <section className="film-grain relative h-full w-full bg-forest-950 text-ivory-50 flex items-start md:items-center overflow-y-auto md:overflow-hidden">
       <div className="warm-wash absolute inset-0 z-[1] opacity-50" />
       <div className="relative z-[3] max-w-6xl mx-auto w-full px-6 md:px-20 py-10 md:py-0 pb-28 md:pb-0">
-        <SlideNumber n={10} dark />
+        <SlideNumber n={9} dark />
 
         <ArryveMark className="h-14 md:h-20 mb-10 opacity-90" invert />
 
@@ -953,8 +864,6 @@ function SlideThankYou() {
           </a>
           <span className="text-ivory-100/30">·</span>
           <span>tryarryve.com</span>
-          <span className="text-ivory-100/30">·</span>
-          <span className="text-ivory-100/60">Cincinnati, AQSh</span>
         </div>
       </div>
     </section>
