@@ -12,7 +12,11 @@
 
 import crypto from 'node:crypto';
 
-export const DASHBOARD_BASE = 'https://api.tryarryve.com/dashboard';
+// Override for local end-to-end testing (parity with lib/dashboard-write.ts
+// in arryve-dashboard, which already supports a base override). Prod leaves
+// this unset and uses the A100 ingress.
+export const DASHBOARD_BASE =
+  process.env.DASHBOARD_BASE || 'https://api.tryarryve.com/dashboard';
 
 /**
  * Sign over `${ts}.${path}.${sha256_hex(body_bytes)}` so binary bodies
