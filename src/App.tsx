@@ -7,6 +7,7 @@ import { playArvyVoice, speakArvy, stopArvyVoice, VOICES } from './voice';
 import { GeminiLiveDemo } from './GeminiLiveDemo';
 import { useVoiceDemo } from './VoiceDemoContext';
 import { logCtaClick } from './demo-log';
+import { CONTACT_EMAIL, MAILTO_CONTACT_URL, DEMO_REQUEST_PATH } from './booking';
 
 /* ─── Shared: speech helper ─── */
 
@@ -16,10 +17,8 @@ const HERO_IMAGE = `${HERO_IMAGE_BASE}&w=1600&q=80`;
 const HERO_IMAGE_SRC_SET = [640, 960, 1280, 1600, 2400]
   .map((width) => `${HERO_IMAGE_BASE}&w=${width}&q=80 ${width}w`)
   .join(', ');
-const CONTACT_EMAIL = 'contact@tryarryve.com';
-const MAILTO_CONTACT_URL = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Arryve demo')}`;
-const DEFAULT_BOOK_DEMO_URL = 'https://calendar.app.google/eo9uCycR6vUZLAau8';
-const BOOK_DEMO_URL = import.meta.env.VITE_BOOK_DEMO_URL || DEFAULT_BOOK_DEMO_URL;
+// CONTACT_EMAIL / MAILTO_CONTACT_URL / DEMO_REQUEST_PATH / BOOK_DEMO_URL
+// now live in ./booking (single source of truth).
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -238,9 +237,7 @@ function Navbar() {
             ))}
           </div>
           <a
-            href={BOOK_DEMO_URL}
-            target="_blank"
-            rel="noreferrer"
+            href={DEMO_REQUEST_PATH}
             onClick={() => logCtaClick('book_demo', { placement: 'top_nav' })}
             className={`hidden md:inline-flex px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
               scrolled
@@ -303,9 +300,7 @@ function Navbar() {
         </nav>
         <div className="p-5 border-t border-ivory-50/15">
           <a
-            href={BOOK_DEMO_URL}
-            target="_blank"
-            rel="noreferrer"
+            href={DEMO_REQUEST_PATH}
             onClick={() => { logCtaClick('book_demo', { placement: 'mobile_menu' }); setMenuOpen(false); }}
             className="flex items-center justify-center gap-2 bg-ivory-50 text-forest-950 py-4 rounded-full text-base font-medium hover:bg-white transition-colors"
           >
@@ -405,9 +400,7 @@ function HeroSection() {
               </p>
               <div className="flex flex-wrap items-center gap-4 md:gap-5">
                 <a
-                  href={BOOK_DEMO_URL}
-                  target="_blank"
-                  rel="noreferrer"
+                  href={DEMO_REQUEST_PATH}
                   onClick={() => logCtaClick('book_demo', { placement: 'hero' })}
                   className="inline-flex items-center gap-2 bg-ivory-50 text-forest-950 px-6 py-3 rounded-full text-sm font-medium hover:bg-white transition-colors group"
                 >
@@ -1464,9 +1457,8 @@ function PricingSection() {
               Cancel anytime. The first 14 days are a live pilot — keep the PMS sync, test every scenario, and only continue if it's pulling its weight.
             </p>
             <a
-              href={BOOK_DEMO_URL}
-              target="_blank"
-              rel="noreferrer"
+              href={DEMO_REQUEST_PATH}
+              onClick={() => logCtaClick('book_demo', { placement: 'pricing_pilot' })}
               className="inline-flex items-center gap-2 bg-forest-950 text-ivory-50 px-6 py-3 rounded-full text-sm font-medium hover:bg-forest-900 transition-colors group"
             >
               Start a pilot
@@ -1708,23 +1700,21 @@ function BookDemoSection() {
           <div className="rounded-3xl bg-ivory-50/[0.04] backdrop-blur-sm border border-ivory-50/10 p-6 md:p-8">
             <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-ivory-100/60 mb-5">
               <span className="h-px w-8 bg-ivory-100/35" />
-              Google Workspace scheduling
+              Book a demo
             </div>
             <h3 className="font-serif text-[32px] md:text-[42px] leading-[1.02] tracking-[-0.02em] text-ivory-50 mb-4 text-balance">
-              Schedule a demo with <span className="italic font-light">{CONTACT_EMAIL}</span>.
+              Tell us about your <span className="italic font-light">hotel</span>.
             </h3>
             <p className="text-base text-ivory-100/72 leading-[1.65] text-pretty max-w-lg mb-8">
-              Use the booking link to open Google Calendar and lock in a time. If you'd rather start over email, write to {CONTACT_EMAIL} and we'll coordinate directly.
+              Share a few details and we'll set up a 30-minute working session on your own call volume and PMS workflow. Prefer email? Write to {CONTACT_EMAIL} and we'll coordinate directly.
             </p>
             <div className="space-y-4">
               <a
-                href={BOOK_DEMO_URL}
-                target="_blank"
-                rel="noreferrer"
+                href={DEMO_REQUEST_PATH}
                 onClick={() => logCtaClick('book_demo', { placement: 'book_demo_section' })}
                 className="w-full bg-ivory-50 text-forest-950 py-3.5 rounded-full text-sm font-medium hover:bg-white transition-colors inline-flex items-center justify-center gap-2 group"
               >
-                Schedule in Google Calendar
+                Book a demo
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </a>
               <a

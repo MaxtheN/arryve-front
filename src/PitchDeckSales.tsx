@@ -15,10 +15,9 @@ import {
   Headphones,
 } from 'lucide-react';
 
-/* Same Google appointment schedule used by the landing page's "Book a
-   Demo" CTA. Override via VITE_BOOK_DEMO_URL env var if needed. */
-const DEFAULT_BOOK_DEMO_URL = 'https://calendar.app.google/eo9uCycR6vUZLAau8';
-const BOOK_DEMO_URL = import.meta.env.VITE_BOOK_DEMO_URL || DEFAULT_BOOK_DEMO_URL;
+/* "Book a call" CTA points at the on-domain lead page (single source of
+   truth in ./booking) so the conversion is tracked + the lead captured. */
+import { DEMO_REQUEST_PATH } from './booking';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
 /* Sales pitch — product-focused deck designed to be sent directly to hotel
@@ -978,9 +977,7 @@ function SlideCTA() {
         <div className="grid md:grid-cols-[1.1fr_1fr] gap-4 max-w-4xl mb-10">
           {/* Primary: Book a call */}
           <a
-            href={BOOK_DEMO_URL}
-            target="_blank"
-            rel="noreferrer"
+            href={DEMO_REQUEST_PATH}
             className="group flex items-center gap-5 rounded-3xl bg-ivory-50 text-forest-950 p-6 md:p-7 hover:bg-white transition-colors"
           >
             <div className="h-14 w-14 rounded-full bg-forest-950 text-ivory-50 grid place-items-center flex-shrink-0">

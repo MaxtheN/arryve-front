@@ -12,6 +12,8 @@
  */
 
 import { clarityEvent, claritySet, clarityUpgrade } from './clarity';
+import { metaTrack, metaTrackCustom } from './meta-pixel';
+import { gtagEvent, gtagConversion } from './gtag';
 
 let sessionId: string | null = null;
 
@@ -150,6 +152,16 @@ export function logDemoEvent(
   } catch {
     /* clarity offline */
   }
+
+  // Mirror high-signal demo moments to Meta + Google ads.
+  try {
+    if (type === 'session_start') {
+      metaTrackCustom('ArvyDemoStart');
+      gtagEvent('arvy_demo_start');
+    }
+  } catch {
+    /* tracking offline */
+  }
 }
 
 function postDashboard(payload: unknown): void {
@@ -265,5 +277,25 @@ export function logCtaClick(
     }
   } catch {
     /* ignore */
+  }
+
+  // Mirror to Meta + Google. `book_demo` means two different things by
+  // placement: on /thank-you it's the post-capture calendar handoff
+  // (Schedule); everywhere else it's intent to start the lead form.
+  try {
+    if (cta === 'book_demo') {
+      if (detail?.placement === 'thank_you') {
+        metaTrack('Schedule', detail);
+        gtagConversion('schedule');
+      } else {
+        metaTrack('InitiateCheckout', detail);
+        gtagEvent('begin_lead', detail);
+      }
+    } else if (cta === 'email_contact') {
+      metaTrackCustom('ContactEmail', detail);
+      gtagEvent('contact_email', detail);
+    }
+  } catch {
+    /* tracking offline */
   }
 }
