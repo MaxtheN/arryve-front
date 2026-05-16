@@ -22,9 +22,20 @@ export const DEMO_REQUEST_PATH = '/demo-request';
 const DEFAULT_BOOK_DEMO_URL = 'https://calendar.app.google/eo9uCycR6vUZLAau8';
 
 /**
- * Google Calendar appointment scheduler. Override via VITE_BOOK_DEMO_URL.
- * Only consumed by /thank-you (post-capture) — never linked directly from
- * a public CTA anymore.
+ * Google Calendar appointment scheduler short link. Override via
+ * VITE_BOOK_DEMO_URL. Used as the new-tab fallback on /demo-request when
+ * no embeddable URL is configured, and by /thank-you.
  */
 export const BOOK_DEMO_URL =
   import.meta.env.VITE_BOOK_DEMO_URL || DEFAULT_BOOK_DEMO_URL;
+
+/**
+ * Embeddable Google Calendar appointment-scheduling URL for the
+ * /demo-request <iframe>. Get it from Google Calendar → the appointment
+ * schedule → Share → "Embed" → copy the iframe `src` (looks like
+ * https://calendar.google.com/calendar/appointments/schedules/XXXX?gv=true).
+ * The short calendar.app.google link usually can't be iframed.
+ * When empty, /demo-request shows a button to BOOK_DEMO_URL instead.
+ */
+export const BOOK_DEMO_EMBED_URL =
+  (import.meta.env.VITE_BOOK_DEMO_EMBED_URL as string | undefined) || '';
