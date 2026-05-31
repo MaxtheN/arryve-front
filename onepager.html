@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Arryve — AI Front Desk Assistant for Hotels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --forest-950: #03241E;
+    --forest-900: #073A2F;
+    --forest-800: #0a4c3d;
+    --ivory-50:  #FDFBF7;
+    --ivory-100: #F7F3EC;
+    --ivory-200: #EDE7DC;
+    --ivory-600: #736A5C;
+    --ivory-700: #554E43;
+    --acid-400:  #F2C62C;
+    --acid-500:  #E7B91E;
+    --tan:       #c5a572;
+
+    --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Print rules — single landscape page, no margins, exact color */
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  @media print {
+    html, body {
+      background: #fff !important;
+      width: 297mm; height: 210mm;
+      margin: 0; padding: 0;
+      overflow: hidden;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .sheet {
+      width: 297mm;
+      height: 210mm;
+      margin: 0;
+      page-break-after: avoid;
+      page-break-inside: avoid;
+    }
+  }
+
+  html, body {
+    height: 100%;
+    font-family: var(--font-sans);
+    color: var(--forest-950);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* On screen: body fills the viewport. The sheet covers it edge-to-edge, so
+     this background is only a fallback that never shows. */
+  body {
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--ivory-100);
+  }
+
+  /* Sheet — fills the entire viewport on screen (full-bleed, no letterbox bars).
+     The two panes split the full width via the 1fr / 1.3fr grid, and content
+     keeps its mm-based sizing so type never stretches — the panes simply gain
+     extra breathing room on larger screens (brand pane via its 1fr center row,
+     info pane via align-content: space-between).
+     For print, @media print constrains it to true A4 landscape (297mm × 210mm). */
+  .sheet {
+    width: 100vw;
+    height: 100vh;
+    background: var(--ivory-100);
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    overflow: hidden;
+  }
+
+  /* LEFT — brand pane */
+  .brand {
+    position: relative;
+    background: var(--forest-950);
+    color: var(--ivory-50);
+    padding: 12mm 13mm;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .brand::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 18% 24%, rgba(242, 198, 44, 0.10), transparent 28%),
+      radial-gradient(circle at 84% 14%, rgba(197, 165, 114, 0.18), transparent 30%),
+      radial-gradient(circle at 50% 100%, rgba(7, 58, 47, 0.7), transparent 55%),
+      linear-gradient(135deg, var(--forest-950), #032c24 48%, #06291f);
+    z-index: -2;
+  }
+  .brand::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(253, 251, 247, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(253, 251, 247, 0.04) 1px, transparent 1px);
+    background-size: 18mm 18mm;
+    -webkit-mask-image: radial-gradient(circle at center, black, transparent 75%);
+    mask-image: radial-gradient(circle at center, black, transparent 75%);
+    opacity: 0.6;
+    z-index: -1;
+  }
+
+  .brand-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 6mm;
+  }
+  .wordmark {
+    display: flex; align-items: center; gap: 3mm;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 7.5mm;
+    letter-spacing: -0.01em;
+    color: var(--ivory-50);
+    line-height: 1;
+  }
+  .wordmark .mark {
+    width: 10mm;
+    height: 11mm;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .wordmark .mark svg { width: 100%; height: 100%; display: block; }
+  .wordmark .mark .main { fill: var(--ivory-50); }
+  .wordmark .mark .accent { fill: var(--ivory-50); }
+
+  .eyebrow {
+    font-size: 2.6mm;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: rgba(247, 243, 236, 0.55);
+  }
+
+  .brand-center {
+    align-self: center;
+    display: flex; flex-direction: column;
+  }
+  h1.display {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 12mm;
+    line-height: 1.02;
+    letter-spacing: -0.018em;
+    color: var(--ivory-50);
+    max-width: 14ch;
+  }
+  h1.display em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--ivory-100);
+  }
+
+  .lede {
+    margin-top: 5mm;
+    font-size: 3.4mm;
+    line-height: 1.65;
+    color: rgba(247, 243, 236, 0.78);
+    max-width: 52ch;
+  }
+  .lede strong { color: var(--ivory-50); font-weight: 500; }
+
+  .quote {
+    margin-top: 5mm;
+    padding-left: 4mm;
+    border-left: 0.4mm solid var(--acid-400);
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 3.8mm;
+    line-height: 1.4;
+    color: var(--ivory-100);
+    max-width: 38ch;
+  }
+
+  .brand-bottom {
+    display: flex; align-items: center; justify-content: space-between; gap: 4mm;
+    padding-top: 5mm;
+    border-top: 0.2mm solid rgba(247, 243, 236, 0.14);
+  }
+  .meta {
+    font-size: 2.8mm;
+    color: rgba(247, 243, 236, 0.6);
+    line-height: 1.5;
+    max-width: 45ch;
+  }
+  .meta strong { color: var(--ivory-100); font-weight: 500; }
+  .url {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 3.6mm;
+    color: var(--acid-400);
+    letter-spacing: 0.02em;
+    text-decoration: none;
+  }
+
+  /* RIGHT — info pane */
+  .info {
+    background: var(--ivory-100);
+    padding: 9mm 10mm;
+    display: grid;
+    grid-template-rows: auto auto auto auto auto;
+    gap: 3mm;
+    align-content: space-between;  /* distribute extra height evenly between rows */
+    overflow: hidden;
+    color: var(--forest-950);
+    position: relative;
+  }
+  .info::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 92% 12%, rgba(242, 198, 44, 0.10), transparent 28%),
+      radial-gradient(circle at 14% 86%, rgba(197, 165, 114, 0.10), transparent 28%);
+    pointer-events: none;
+  }
+
+  .row-label {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 3mm;
+    color: var(--ivory-700);
+    letter-spacing: 0.01em;
+    margin-bottom: 1.5mm;
+  }
+  .row-label::before {
+    content: "";
+    display: inline-block;
+    width: 4mm; height: 0.3mm;
+    background: var(--ivory-600);
+    margin-right: 2mm;
+    vertical-align: middle;
+  }
+
+  /* Stats strip */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3mm;
+    position: relative;
+  }
+  .stat {
+    background: var(--ivory-50);
+    border: 0.2mm solid rgba(3, 36, 30, 0.08);
+    border-radius: 3.5mm;
+    padding: 3mm 3.5mm;
+  }
+  .stat .num {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 8.5mm;
+    line-height: 1;
+    color: var(--forest-950);
+    letter-spacing: -0.02em;
+  }
+  .stat .num em { font-style: italic; color: var(--forest-900); }
+  .stat .num small { font-size: 0.45em; color: var(--ivory-700); font-family: var(--font-sans); font-weight: 400; letter-spacing: 0; }
+  .stat .lbl {
+    margin-top: 2mm;
+    font-size: 2.6mm;
+    line-height: 1.4;
+    color: var(--ivory-700);
+  }
+
+  /* Capabilities */
+  .capabilities {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5mm;
+    position: relative;
+  }
+  .cap {
+    background: var(--ivory-50);
+    border: 0.2mm solid rgba(3, 36, 30, 0.08);
+    border-radius: 3.5mm;
+    padding: 2.8mm 3.2mm;
+    display: flex; gap: 2.5mm; align-items: flex-start;
+  }
+  .cap .ico {
+    flex-shrink: 0;
+    width: 7mm; height: 7mm;
+    border-radius: 2.2mm;
+    background: rgba(3, 36, 30, 0.06);
+    color: var(--forest-900);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cap .ico svg { width: 4mm; height: 4mm; }
+  .cap .t {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 3.4mm;
+    color: var(--forest-950);
+    line-height: 1.25;
+  }
+  .cap .t em { font-style: italic; }
+  .cap .d {
+    margin-top: 1mm;
+    font-size: 2.5mm;
+    line-height: 1.45;
+    color: var(--ivory-700);
+  }
+
+  /* Vision */
+  .vision {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5mm;
+    position: relative;
+  }
+  .pv {
+    background: var(--forest-950);
+    color: var(--ivory-50);
+    border-radius: 3.5mm;
+    padding: 2.8mm 3.2mm;
+  }
+  .pv:nth-child(2) { background: var(--forest-900); }
+  .pv:nth-child(3) { background: linear-gradient(135deg, var(--forest-900), var(--forest-800)); }
+  .pv .tag {
+    font-size: 2mm;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--acid-400);
+    font-weight: 500;
+  }
+  .pv .nm {
+    margin-top: 1mm;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 3.5mm;
+    color: var(--ivory-50);
+    line-height: 1.2;
+  }
+  .pv .nm strong { font-style: normal; font-family: var(--font-sans); font-weight: 500; font-size: 3.2mm; letter-spacing: -0.005em; }
+  .pv .d {
+    margin-top: 1.2mm;
+    font-size: 2.4mm;
+    line-height: 1.45;
+    color: rgba(247, 243, 236, 0.72);
+  }
+
+  /* Pricing strip */
+  .pricing {
+    background: var(--ivory-50);
+    border: 0.2mm solid rgba(3, 36, 30, 0.08);
+    border-radius: 3.5mm;
+    padding: 3mm 4mm;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4mm;
+    align-items: center;
+    position: relative;
+  }
+  .pricing .price {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 6mm;
+    line-height: 1;
+    color: var(--forest-950);
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+  .pricing .price em {
+    font-style: italic;
+    color: var(--forest-900);
+    font-size: 0.55em;
+    margin-left: 1mm;
+  }
+  .pricing .price small { font-size: 0.42em; color: var(--ivory-700); font-family: var(--font-sans); font-weight: 400; margin-left: 1mm; letter-spacing: 0; }
+  .pricing .terms {
+    font-size: 2.5mm;
+    color: var(--ivory-700);
+    line-height: 1.55;
+  }
+  .pricing .pill {
+    display: inline-block;
+    padding: 0.3mm 1.8mm;
+    background: rgba(242, 198, 44, 0.2);
+    border: 0.2mm solid rgba(231, 185, 30, 0.4);
+    color: var(--ivory-700);
+    border-radius: 999px;
+    font-size: 2.2mm;
+    font-weight: 500;
+    margin-right: 1mm;
+    letter-spacing: 0.02em;
+  }
+
+  /* Bottom row — team + traction */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1.15fr 1fr;
+    gap: 2.5mm;
+    align-items: stretch;
+  }
+  .founder {
+    background: var(--ivory-50);
+    border: 0.2mm solid rgba(3, 36, 30, 0.08);
+    border-radius: 3.5mm;
+    padding: 2.8mm 3.2mm;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2.5mm;
+    align-items: start;
+  }
+  .founder .avt {
+    width: 8.5mm; height: 8.5mm;
+    border-radius: 2.5mm;
+    background: linear-gradient(135deg, var(--forest-950), var(--forest-800));
+    color: var(--ivory-50);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 3.4mm;
+    letter-spacing: -0.02em;
+  }
+  .founder .nm {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 3.4mm;
+    color: var(--forest-950);
+    line-height: 1.2;
+  }
+  .founder .role {
+    font-size: 2mm;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--acid-500);
+    margin-top: 0.4mm;
+    font-weight: 500;
+  }
+  .founder .bio {
+    margin-top: 1.2mm;
+    font-size: 2.4mm;
+    line-height: 1.45;
+    color: var(--ivory-700);
+  }
+
+  .traction {
+    background: var(--forest-950);
+    color: var(--ivory-50);
+    border-radius: 3.5mm;
+    padding: 2.8mm 3.2mm;
+    position: relative;
+    overflow: hidden;
+  }
+  .traction .row-label { color: rgba(247, 243, 236, 0.55); margin-bottom: 1mm; }
+  .traction .row-label::before { background: rgba(247, 243, 236, 0.35); }
+  .traction .big {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 7mm;
+    line-height: 1;
+    color: var(--acid-400);
+    letter-spacing: -0.02em;
+  }
+  .traction .big em { font-style: italic; color: var(--ivory-100); }
+  .traction .d {
+    margin-top: 1.8mm;
+    font-size: 2.4mm;
+    line-height: 1.5;
+    color: rgba(247, 243, 236, 0.78);
+  }
+
+  /* Screen-only readability boost — larger type, looser leading, and a touch
+     more contrast. Print is intentionally excluded: the A4 layout is tuned to
+     fill exactly 210mm, so it keeps the original sizing and never overflows. */
+  @media screen {
+    /* Left brand pane — enlarged for presence on screen. */
+    .wordmark       { font-size: 9mm; }
+    .wordmark .mark { width: 11.5mm; height: 12.5mm; }
+    .eyebrow      { font-size: 3.4mm; }
+    h1.display    { font-size: 14.5mm; }
+    .lede         { font-size: 4.5mm; line-height: 1.7; color: rgba(247, 243, 236, 0.86); }
+    .quote        { font-size: 4.9mm; }
+    .meta         { font-size: 3.7mm; color: rgba(247, 243, 236, 0.74); }
+    .url          { font-size: 4.6mm; }
+
+    .row-label    { font-size: 3.5mm; }
+    .stat .num    { font-size: 9mm; }
+    .stat .lbl    { font-size: 3.1mm; line-height: 1.45; }
+    .cap .t       { font-size: 3.9mm; }
+    .cap .d       { font-size: 3mm; line-height: 1.5; }
+    .pv .tag      { font-size: 2.4mm; }
+    .pv .nm       { font-size: 4mm; }
+    .pv .nm strong{ font-size: 3.6mm; }
+    .pv .d        { font-size: 2.9mm; line-height: 1.5; color: rgba(247, 243, 236, 0.84); }
+    .pricing .price { font-size: 6.4mm; }
+    .pricing .terms { font-size: 3mm; line-height: 1.6; }
+    .pill         { font-size: 2.6mm; }
+    .founder .nm  { font-size: 3.9mm; }
+    .founder .role{ font-size: 2.4mm; }
+    .founder .bio { font-size: 2.9mm; line-height: 1.5; }
+    .traction .big{ font-size: 7.4mm; }
+    .traction .d  { font-size: 2.9mm; line-height: 1.5; color: rgba(247, 243, 236, 0.86); }
+  }
+</style>
+</head>
+<body>
+
+<!-- icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-xfer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="19 1 23 5 19 9"/><line x1="15" y1="5" x2="23" y2="5"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></symbol>
+  </defs>
+</svg>
+
+<div class="sheet">
+
+  <!-- LEFT — brand -->
+  <section class="brand">
+    <div class="brand-top">
+      <span class="wordmark">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 86 94" xmlns="http://www.w3.org/2000/svg">
+            <g transform="translate(-98.63974,-6.956133)">
+              <g transform="translate(0,-199.541391)">
+                <path class="main" d="M165.513,233.518C168.087,236.783 181.805,266.805 183.001,270.939C184.007,274.303 184.303,277.838 183.872,281.322C183.113,287.221 180.395,291.97 175.522,295.43C172.96,297.243 170.046,298.497 166.968,299.11C158.621,300.78 147.435,299.345 138.781,299.746C130.875,300.112 123.55,300.58 117.227,295.094C119.006,290.257 119.978,285.945 122.184,281.021C123.285,282.774 124.582,284.793 126.333,285.953C130.053,288.418 159.412,288.12 164.859,286.836C167.491,286.216 169.473,284.46 170.771,282.116C172.382,279.203 172.591,276.171 171.729,272.996C170.559,268.688 159.467,245.938 156.635,242.51C154.683,240.148 152.425,238.832 149.809,237.347C155.813,233.793 158.811,233.446 165.513,233.518Z"/>
+                <path class="accent" d="M117.227,295.094C108.961,286.718 109.711,277.418 115.107,267.725C119.97,258.99 123.174,248.481 128.106,239.982C129.451,237.65 131.13,235.527 133.088,233.68C142.014,225.284 156.927,224.091 165.513,233.518C158.811,233.446 155.813,233.793 149.809,237.347C139.293,242.14 137.298,246.45 132.74,256.659C129.128,264.749 125.368,272.715 122.184,281.021C119.978,285.945 119.006,290.257 117.227,295.094Z"/>
+                <path class="main" d="M144.833,206.67C159.275,204.917 158.677,217.074 145.703,218.372C128.706,220.072 114.111,234.625 111.243,251.278C110.453,255.867 111.177,260.988 108.88,265.074C89.576,277.629 95.441,213.646 144.833,206.67Z"/>
+              </g>
+            </g>
+          </svg>
+        </span>
+        Arryve
+      </span>
+      <span class="eyebrow">AI front desk · for hotels</span>
+    </div>
+
+    <div class="brand-center">
+      <h1 class="display">
+        A better arrival<br>
+        starts with the <em>first&nbsp;call.</em>
+      </h1>
+      <p class="lede">
+        <strong>Arryve</strong> answers every hotel booking call in two rings.
+        Live PMS availability, verified rates, real reservations — and a warm
+        transfer when the call needs a human.
+      </p>
+      <p class="quote">
+        "Hotels miss <em>one in three</em> calls. We answer them — and book them."
+      </p>
+    </div>
+
+    <div class="brand-bottom">
+      <p class="meta">
+        By <strong>Rakhmatjon Gaipov</strong> &amp; <strong>Nurislombek</strong>. Pilot live — 5 hotels.
+      </p>
+      <span class="url">tryarryve.com</span>
+    </div>
+  </section>
+
+  <!-- RIGHT — info -->
+  <section class="info">
+
+    <div>
+      <p class="row-label">The phone problem at hotels</p>
+      <div class="stats">
+        <div class="stat">
+          <p class="num">1 <em>in</em> 3</p>
+          <p class="lbl">Hotel calls go unanswered.</p>
+        </div>
+        <div class="stat">
+          <p class="num">$12K<small>/mo</small></p>
+          <p class="lbl">Lost revenue per property.</p>
+        </div>
+        <div class="stat">
+          <p class="num">2 <em>rings</em></p>
+          <p class="lbl">Arvy answers, 24/7.</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="row-label">What Arvy does on every call</p>
+      <div class="capabilities">
+        <div class="cap">
+          <span class="ico"><svg><use href="#i-msg"/></svg></span>
+          <div>
+            <p class="t">Hotel FAQ from <em>structured</em> knowledge</p>
+            <p class="d">Tied to your property facts, not loose prompts.</p>
+          </div>
+        </div>
+        <div class="cap">
+          <span class="ico"><svg><use href="#i-cal"/></svg></span>
+          <div>
+            <p class="t">Live PMS availability lookup</p>
+            <p class="d">Checks your PMS. Never improvises.</p>
+          </div>
+        </div>
+        <div class="cap">
+          <span class="ico"><svg><use href="#i-check"/></svg></span>
+          <div>
+            <p class="t">Verified rate quotes <em>only</em></p>
+            <p class="d">Only what the PMS returns. No invented rates.</p>
+          </div>
+        </div>
+        <div class="cap">
+          <span class="ico"><svg><use href="#i-xfer"/></svg></span>
+          <div>
+            <p class="t">Warm transfer with the note written</p>
+            <p class="d">Complaints, payments, groups — handed to staff cleanly.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="row-label">Two AI agents — one platform for hotel revenue</p>
+      <div class="vision">
+        <div class="pv">
+          <p class="tag">Live · in pilots</p>
+          <p class="nm"><strong>Arvy</strong> — voice agent</p>
+          <p class="d">Answers every call, books to your PMS, sends the SMS.</p>
+        </div>
+        <div class="pv">
+          <p class="tag">Next</p>
+          <p class="nm"><strong>Revenue IQ</strong> — revenue agent</p>
+          <p class="d">Dynamic ADR from your call &amp; market data.</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="row-label">Pricing — one transparent plan</p>
+      <div class="pricing">
+        <p class="price">$1,799<em>·</em><small>property / month</small></p>
+        <p class="terms">
+          <span class="pill">14-day refundable pilot</span>
+          <span class="pill">Live in 5 days</span>
+          Annual $17,990 · HotelKey live.
+        </p>
+      </div>
+    </div>
+
+    <div>
+      <p class="row-label">Founders &amp; traction</p>
+      <div class="bottom-grid">
+        <div class="founder">
+          <span class="avt">RG</span>
+          <div>
+            <p class="nm">Rakhmatjon Gaipov</p>
+            <p class="role">Founder · Sales &amp; Ops</p>
+            <p class="bio">3+ yrs at Holiday Inn Express. Grew property $1M → $1.7M. 20+ hotel network.</p>
+          </div>
+        </div>
+        <div class="founder">
+          <span class="avt">N</span>
+          <div>
+            <p class="nm">Nurislombek</p>
+            <p class="role">CTO · Product &amp; Eng</p>
+            <p class="bio">Built OY:Tickets and OYGUL (1M users). 2024 Pres Tech Award + $100K grant.</p>
+          </div>
+        </div>
+        <div class="traction">
+          <p class="row-label">Today</p>
+          <p class="big">5 <em>pilots</em></p>
+          <p class="d">Active pilots · HotelKey live · 100+ diaspora hotels today, 1,000+ in 2–3 yrs.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+</body>
+</html>

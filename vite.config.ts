@@ -29,6 +29,7 @@ export default defineConfig(({mode}) => {
           pitchru: path.resolve(__dirname, 'pitchru.html'),
           pitchuz: path.resolve(__dirname, 'pitchuz.html'),
           pitchsales: path.resolve(__dirname, 'pitchsales.html'),
+          onepager: path.resolve(__dirname, 'onepager.html'),
           demoRequest: path.resolve(__dirname, 'demo-request.html'),
           thankYou: path.resolve(__dirname, 'thank-you.html'),
         },
